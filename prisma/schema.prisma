@@ -1,0 +1,345 @@
+// FreshWaste ERP — database schema (PostgreSQL)
+// Owner: Leader. Frozen on Oct 23; changes after that go through the Leader.
+//
+// Data flow:  ImportBatch ──< SalesLine ──(rebuild)──> DailySales ──> Forecast ──> Order
+//                                                                         └──> Alert / Promotion
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url       = env("DATABASE_URL") // Neon "pooled" connection string — used by the app
+  directUrl = env("DIRECT_URL") // Neon "direct" connection string — used by prisma db push
+}
+
+// ─────────────────────────────── Master data ───────────────────────────────
+
+/// A store. `storeNo` = "Store No_" in the D365 export (e.g. 801).
+/// Only branches with isActive = true are loaded from the export (the file holds all 36).
+model Branch {
+  storeNo   Int      @id @map("store_no")
+  name      String
+  isActive  Boolean  @default(false) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  users      UserBranch[]
+  thresholds BranchThreshold[]
+
+  @@map("branch")
+}
+
+/// An item. `itemNo` = "Item No_" in the export (e.g. SB094).
+/// inScope = one of the 8 SKUs the system forecasts and orders.
+model Sku {
+  itemNo        String  @id @map("item_no")
+  nameTh        String  @map("name_th")
+  nameEn        String? @map("name_en")
+  categoryCode  String  @map("category_code") // "Item Category Code": SB, SC, ST, SCP …
+  categoryName  String? @map("category_name") // Bread, Cake slice, Thai dessert, Pound cake
+  price         Decimal @db.Decimal(10, 2)
+  shelfLifeDays Int     @map("shelf_life_days")
+  inScope       Boolean @default(false) @map("in_scope")
+
+  @@map("sku")
+}
+
+enum Role {
+  STORE_MANAGER
+  AREA_MANAGER // = Area Manager / IT Admin
+}
+
+model User {
+  id        String       @id @default(uuid())
+  email     String       @unique
+  name      String
+  role      Role
+  branches  UserBranch[]
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  @@map("app_user")
+}
+
+/// G2 / NFR4: which branches a user may see.
+model UserBranch {
+  userId  String @map("user_id")
+  storeNo Int    @map("store_no")
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch  Branch @relation(fields: [storeNo], references: [storeNo])
+
+  @@id([userId, storeNo])
+  @@map("user_branch")
+}
+
+// ─────────────────────────────── Ingestion (S1, S9, NFR5) ───────────────────────────────
+
+enum FileKind {
+  SALES_ENTRY
+  DAILY_REPORT // waste per branch — later
+}
+
+enum ImportStatus {
+  RECEIVED
+  PROCESSING
+  LOADED
+  LOADED_WITH_ERRORS
+  FAILED
+  DUPLICATE
+}
+
+/// One uploaded file. `id` is the processing ID returned to Power Automate.
+model ImportBatch {
+  id           String       @id @default(uuid())
+  fileName     String       @map("file_name")
+  fileHash     String       @unique @map("file_hash") // sha256: same file twice → DUPLICATE
+  fileKind     FileKind     @map("file_kind")
+  source       String       @default("power-automate") // power-automate | backfill | simulate
+  status       ImportStatus @default(RECEIVED)
+  periodFrom   DateTime?    @map("period_from") @db.Date
+  periodTo     DateTime?    @map("period_to") @db.Date
+  rowsTotal    Int          @default(0) @map("rows_total")
+  rowsLoaded   Int          @default(0) @map("rows_loaded") // new lines inserted
+  rowsSkipped  Int          @default(0) @map("rows_skipped") // inactive branch or already loaded
+  rowsRejected Int          @default(0) @map("rows_rejected") // failed validation
+  message      String?
+  receivedAt   DateTime     @default(now()) @map("received_at")
+  finishedAt   DateTime?    @map("finished_at")
+
+  errors ImportError[]
+  lines  SalesLine[]
+
+  @@index([status, receivedAt])
+  @@map("import_batch")
+}
+
+model ImportError {
+  id        BigInt      @id @default(autoincrement())
+  batchId   String      @map("batch_id")
+  rowNumber Int         @map("row_number") // Excel row, 1 = header
+  column    String?
+  message   String
+  batch     ImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+  @@map("import_error")
+}
+
+// ─────────────────────────────── Sales ───────────────────────────────
+
+/// One POS line, as exported (active branches only).
+/// D365 sign convention: quantity < 0 = sale, quantity > 0 = return / void.
+/// Natural key (store, terminal, transaction, line) makes reloading the same lines a no-op.
+model SalesLine {
+  id             BigInt   @id @default(autoincrement())
+  batchId        String   @map("batch_id")
+  storeNo        Int      @map("store_no")
+  posTerminalNo  Int      @map("pos_terminal_no")
+  transactionNo  BigInt   @map("transaction_no")
+  lineNo         Int      @map("line_no")
+  receiptNo      String   @map("receipt_no")
+  saleDate       DateTime @map("sale_date") @db.Date
+  saleTime       DateTime @map("sale_time") @db.Time(3)
+  itemNo         String   @map("item_no")
+  categoryCode   String?  @map("category_code")
+  quantity       Int
+  price          Decimal  @db.Decimal(12, 5)
+  netPrice       Decimal  @map("net_price") @db.Decimal(12, 5)
+  discountAmount Decimal  @map("discount_amount") @db.Decimal(12, 2)
+  netAmount      Decimal  @map("net_amount") @db.Decimal(12, 2)
+  totalAmount    Decimal  @map("total_amount") @db.Decimal(12, 2) // "Total Rounded Amt_" (incl. VAT)
+  priceGroupCode String?  @map("price_group_code")
+  customerNo     String?  @map("customer_no")
+
+  batch ImportBatch @relation(fields: [batchId], references: [id])
+
+  @@unique([storeNo, posTerminalNo, transactionNo, lineNo])
+  @@index([storeNo, saleDate, itemNo])
+  @@map("sales_line")
+}
+
+/// Per branch × item × day. Rebuilt from SalesLine after every load — the model and the dashboard read this, not SalesLine.
+model DailySales {
+  storeNo         Int       @map("store_no")
+  itemNo          String    @map("item_no")
+  saleDate        DateTime  @map("sale_date") @db.Date
+  qtySold         Int       @map("qty_sold") // sum of -quantity where quantity < 0
+  qtyReturned     Int       @map("qty_returned") // sum of quantity where quantity > 0
+  qtyBeforeCutoff Int       @map("qty_before_cutoff") // sold before 13:30 → Model 1 feature
+  salesValue      Decimal   @map("sales_value") @db.Decimal(14, 2) // baht incl. VAT, net of returns
+  lastSaleTime    DateTime? @map("last_sale_time") @db.Time(3) // early last sale = possible sell-out
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@id([storeNo, itemNo, saleDate])
+  @@map("daily_sales")
+}
+
+/// Stock on the shelf. COUNT = typed by the manager ("Left now", SM4); ESTIMATED = computed.
+model StockSnapshot {
+  id       BigInt   @id @default(autoincrement())
+  storeNo  Int      @map("store_no")
+  itemNo   String   @map("item_no")
+  takenAt  DateTime @map("taken_at")
+  qty      Int
+  source   String // COUNT | ESTIMATED | IMPORT
+  userId   String?  @map("user_id")
+
+  @@index([storeNo, itemNo, takenAt])
+  @@map("stock_snapshot")
+}
+
+/// Waste in baht at sale price. itemNo null = branch-level (DailyReport).
+model WasteRecord {
+  id         BigInt   @id @default(autoincrement())
+  storeNo    Int      @map("store_no")
+  itemNo     String?  @map("item_no")
+  wasteDate  DateTime @map("waste_date") @db.Date
+  qty        Int?
+  value      Decimal  @db.Decimal(12, 2)
+  source     String // DAILY_REPORT | MANUAL | SIMULATED
+
+  @@index([storeNo, wasteDate])
+  @@map("waste_record")
+}
+
+// ─────────────────────────────── Forecast (S3, S8, NFR6, NFR7) ───────────────────────────────
+
+enum ModelKind {
+  REST_OF_DAY // Model 1: units still sold today after 13:30
+  TOMORROW // Model 2: full-day units tomorrow
+}
+
+model ModelVersion {
+  id        String    @id @default(uuid())
+  kind      ModelKind
+  version   String // e.g. "2026-10-24-a"
+  onnxPath  String    @map("onnx_path")
+  trainedAt DateTime  @map("trained_at")
+  dataFrom  DateTime  @map("data_from") @db.Date
+  dataTo    DateTime  @map("data_to") @db.Date
+  metrics   Json // { wape, mae, bias, baseline: {…} }
+  isActive  Boolean   @default(false) @map("is_active")
+
+  forecasts Forecast[]
+
+  @@unique([kind, version])
+  @@map("model_version")
+}
+
+model Forecast {
+  id             BigInt       @id @default(autoincrement())
+  modelVersionId String       @map("model_version_id")
+  storeNo        Int          @map("store_no")
+  itemNo         String       @map("item_no")
+  targetDate     DateTime     @map("target_date") @db.Date
+  runAt          DateTime     @map("run_at")
+  predictedQty   Decimal      @map("predicted_qty") @db.Decimal(10, 3)
+  modelVersion   ModelVersion @relation(fields: [modelVersionId], references: [id])
+
+  @@unique([modelVersionId, storeNo, itemNo, targetDate, runAt])
+  @@index([storeNo, targetDate])
+  @@map("forecast")
+}
+
+// ─────────────────────────────── Ordering (SM3, SM4, S4, S5) ───────────────────────────────
+
+enum OrderLineStatus {
+  SUGGESTED
+  CONFIRMED // within 20% → auto-approved
+  PENDING_AM // > 20% above suggestion → Area Manager
+  APPROVED
+  REJECTED
+}
+
+/// One line of tomorrow's factory order. Formula fields are stored so the screen and the audit show the same numbers.
+model OrderLine {
+  id           BigInt          @id @default(autoincrement())
+  storeNo      Int             @map("store_no")
+  itemNo       String          @map("item_no")
+  deliveryDate DateTime        @map("delivery_date") @db.Date
+  needQty      Int             @map("need_qty") // tomorrow forecast (± buffer, per the agreed formula)
+  usableQty    Int             @map("usable_qty") // leftover still sellable tomorrow; 0 on last day
+  suggestedQty Int             @map("suggested_qty")
+  orderedQty   Int?            @map("ordered_qty")
+  status       OrderLineStatus @default(SUGGESTED)
+  confirmedBy  String?         @map("confirmed_by")
+  confirmedAt  DateTime?       @map("confirmed_at")
+  reviewedBy   String?         @map("reviewed_by")
+  reviewedAt   DateTime?       @map("reviewed_at")
+
+  @@unique([storeNo, itemNo, deliveryDate])
+  @@map("order_line")
+}
+
+// ─────────────────────────────── Alerts & promotions (SM5, SM6, S7, SM9, SM10) ───────────────────────────────
+
+/// categoryCode null = branch default; a row with a category overrides it.
+model BranchThreshold {
+  id                  String   @id @default(uuid())
+  storeNo             Int      @map("store_no")
+  categoryCode        String?  @map("category_code")
+  opportunityCheckAt  String   @default("14:00") @map("opportunity_check_at") // HH:mm — open decision: 14:00 vs 14:30
+  opportunityMaxUnits Int      @default(3) @map("opportunity_max_units")
+  cheerCheckAt        String   @default("18:00") @map("cheer_check_at") // open decision: 17:00 vs 18:00
+  cheerMinPct         Decimal  @default(10) @map("cheer_min_pct") @db.Decimal(5, 2)
+  wasteRiskPct        Decimal  @default(10) @map("waste_risk_pct") @db.Decimal(5, 2)
+  discountPct         Decimal  @default(20) @map("discount_pct") @db.Decimal(5, 2)
+  updatedBy           String?  @map("updated_by")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  branch              Branch   @relation(fields: [storeNo], references: [storeNo])
+
+  @@unique([storeNo, categoryCode])
+  @@map("branch_threshold")
+}
+
+enum AlertType {
+  SHORTAGE_RISK
+  WASTE_RISK
+  PROMOTION
+  STALE_DATA
+  SYSTEM
+}
+
+model Alert {
+  id        BigInt    @id @default(autoincrement())
+  storeNo   Int       @map("store_no")
+  itemNo    String?   @map("item_no")
+  type      AlertType
+  message   String
+  actionUrl String?   @map("action_url") // S10
+  createdAt DateTime  @default(now()) @map("created_at")
+  readAt    DateTime? @map("read_at")
+
+  @@index([storeNo, createdAt])
+  @@map("alert")
+}
+
+model Promotion {
+  id          BigInt    @id @default(autoincrement())
+  storeNo     Int       @map("store_no")
+  itemNo      String    @map("item_no")
+  promoDate   DateTime  @map("promo_date") @db.Date
+  discountPct Decimal   @map("discount_pct") @db.Decimal(5, 2)
+  mode        String // AUTO | MANUAL
+  posStatus   String    @default("PENDING") @map("pos_status") // PENDING | LIVE | NONE
+  pushedAt    DateTime? @map("pushed_at")
+  pushedBy    String?   @map("pushed_by")
+
+  @@unique([storeNo, itemNo, promoDate])
+  @@map("promotion")
+}
+
+// ─────────────────────────────── Audit (NFR5) ───────────────────────────────
+
+model AuditLog {
+  id       BigInt   @id @default(autoincrement())
+  at       DateTime @default(now())
+  actor    String // user id, or "system" / "power-automate"
+  action   String // INGEST | FORECAST_RUN | ORDER_CONFIRM | THRESHOLD_CHANGE | ALERT_CREATE | NOTIFY
+  entity   String
+  entityId String?  @map("entity_id")
+  detail   Json?
+
+  @@index([at])
+  @@map("audit_log")
+}

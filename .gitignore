@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+!.env.example
+
+# real D365 exports (66 MB/month) stay out of git — test files go in fixtures/
+/data/
