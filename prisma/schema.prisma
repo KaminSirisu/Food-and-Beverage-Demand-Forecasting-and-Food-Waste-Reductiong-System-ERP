@@ -55,6 +55,11 @@ model User {
   email     String       @unique
   name      String
   role      Role
+  // Invite-only access: the Leader creates the row with prisma/invite.ts,
+  // the manager claims it at /signup?token=… (G2 / NFR4 — no self-registration, no role choice).
+  passwordHash    String?   @map("password_hash")             // null = invited, not activated yet
+  inviteTokenHash String?   @unique @map("invite_token_hash") // sha256 of the link token, never the raw token
+  inviteExpiresAt DateTime? @map("invite_expires_at")
   branches  UserBranch[]
   createdAt DateTime     @default(now()) @map("created_at")
 
