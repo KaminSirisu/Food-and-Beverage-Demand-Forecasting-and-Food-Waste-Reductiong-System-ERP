@@ -1,8 +1,9 @@
 // Leader-only CLI: invite the Store Manager. The only way an account can come into existence (G2 / NFR4).
 // Usage: npx tsx prisma/invite.ts <email> <storeNo>
 // Re-running for the same email issues a fresh link (doubles as a password reset).
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import { db } from "@/lib/db";
+import { hashToken } from "@/lib/auth/invite";
 
 const INVITE_TTL_HOURS = 48;
 
@@ -20,7 +21,7 @@ async function main() {
 
    // 32 random bytes -> ~43 URL-safe chars. Only the hash goes to the DB.
    const token = randomBytes(32).toString("base64url");
-   const inviteTokenHash = createHash("sha256").update(token).digest("hex");
+   const inviteTokenHash = hashToken(token);
    const inviteExpiresAt = new Date(Date.now() + INVITE_TTL_HOURS * 60 * 60 * 1000);
 
    // Role is decided HERE, by whoever has DB access - never by the person signing up.
