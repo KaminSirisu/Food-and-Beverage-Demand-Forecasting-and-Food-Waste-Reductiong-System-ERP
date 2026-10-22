@@ -14,7 +14,7 @@ export const verifySession = cache(async () => {
     return session;
 });
 
-// DTP: return only what the UI needs - never the user row with passwordHash / inviteTokenHash.
+// DTO: return only what the UI needs - never the user row with passwordHash / inviteTokenHash.
 export const getCurrentUser = cache(async () => {
     const { userId, storeNo } = await verifySession();
     const user = await db.user.findUnique({

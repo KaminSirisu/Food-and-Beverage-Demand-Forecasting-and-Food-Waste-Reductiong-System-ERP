@@ -12,12 +12,12 @@ const KEY_LEN = 64;
 export async function hashPassword(password: string): Promise<string> {
     const salt = randomBytes(16);
     const hash = await scrypt(password.normalize("NFKC"), salt, KEY_LEN, PARAMS);
-    return `${salt.toString("hex")}: ${hash.toString("hex")}`;
+    return `${salt.toString("hex")}:${hash.toString("hex")}`;
 }
 
 export async function verifyPassword(password: string, stored: string): Promise<boolean> {
     const [ saltHex, hashHex ] = stored.split(":");
-    if (!saltHex || !hashHex ) return false;
+    if (!saltHex || !hashHex || hashHex.length !== KEY_LEN * 2 ) return false; // malformed -> never match
     const expected = Buffer.from(hashHex, "hex");
     const actual = await scrypt(password.normalize("NFKC"), Buffer.from(saltHex, "hex"), expected.length, PARAMS);
     return timingSafeEqual(actual, expected); // constant time: no leak via "how many bytes matched"

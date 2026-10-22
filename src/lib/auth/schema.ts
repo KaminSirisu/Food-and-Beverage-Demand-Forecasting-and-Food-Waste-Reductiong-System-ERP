@@ -9,11 +9,14 @@ export const LoginSchema = z.object({
 export const SignupSchema = z
     .object({
         token: z.string().min(1),
-        name: z.string().trim().min(1, "Enter you name").max(100),
+        name: z.string().trim().min(1, "Enter your name").max(100),
         password: z.string().min(8, "At least 8 characters").max(128), // max: stops 1 MB passwords hogging scrypt
         confirmPassword: z.string(),
     })
     .refine((d) => d.password === d.confirmPassword, { message: "Passwords do not match", path: ["confirmPassword"] });
 
 // What a server action returns to useActionState: field errors and/or one form-level message.
-export type FormState = { error?: Record<string, string[] | undefined>; message?: string } | undefined;
+// and the submitted values (React 19 resets the form after an action, so we re-fill it).
+export type FormState =
+  | { errors?: Record<string, string[] | undefined>; message?: string; values?: Record<string, string> }
+  | undefined;

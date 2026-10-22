@@ -2,7 +2,6 @@ import "server-only";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import type { Role } from "@prisma/client";
-import { Session } from "inspector/promises";
 
 export const SESSION_COOKIE = "session";
 const SESSION_DAYS = 7;
@@ -16,7 +15,7 @@ export type SessionPayload = {
 
 function key(): Uint8Array {
     const secret = process.env.SESSION_SECRET;
-    if (!secret || secret.length < 32) throw new Error("SESSION_SECRET missing or shoter than 32 chars");
+    if (!secret || secret.length < 32) throw new Error("SESSION_SECRET missing or shorter than 32 chars");
     return new TextEncoder().encode(secret);
 }
 
