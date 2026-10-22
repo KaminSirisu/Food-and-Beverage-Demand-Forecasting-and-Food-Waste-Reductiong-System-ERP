@@ -7,9 +7,9 @@ import { db } from "@/lib/db";
 const INVITE_TTL_HOURS = 48;
 
 async function main() {
-    const [emailArg, storeArg] = process.argv.slice(2);
-    const storeNo = Number(storeArg);
-    if (!emailArg || !Number.isInteger(storeNo)) {
+   const [emailArg, storeArg] = process.argv.slice(2);
+   const storeNo = Number(storeArg);
+   if (!emailArg || !Number.isInteger(storeNo)) {
         console.error("usage: npx tsx prisma/invite.ts <email> <storeNo>");
         process.exit(1);
    }
@@ -18,16 +18,16 @@ async function main() {
    const branch = await db.branch.findUnique({ where: { storeNo } });
    if (!branch?.isActive) throw new Error(`branch ${storeNo} missing or inactive - run npm run db:seed first`);
 
-   // 32 random bytes -> ~43 URL-safe shars. Only the hash goes to the DB.
+   // 32 random bytes -> ~43 URL-safe chars. Only the hash goes to the DB.
    const token = randomBytes(32).toString("base64url");
    const inviteTokenHash = createHash("sha256").update(token).digest("hex");
    const inviteExpiresAt = new Date(Date.now() + INVITE_TTL_HOURS * 60 * 60 * 1000);
 
-   // Role is decided HERE, by however as DB access - never by the person signing up.
+   // Role is decided HERE, by whoever has DB access - never by the person signing up.
    const user = await db.user.upsert({
-        where: { email },
-        update: { inviteTokenHash, inviteExpiresAt },
-        create: { email, name: email.split("@")[0], role: "STORE_MANAGER", inviteTokenHash, inviteExpiresAt },
+     where: { email },
+     update: { inviteTokenHash, inviteExpiresAt },
+     create: { email, name: email.split("@")[0], role: "STORE_MANAGER", inviteTokenHash, inviteExpiresAt },
    });
 
    // G2: which branch this user may see.
@@ -37,7 +37,7 @@ async function main() {
     create: { userId: user.id, storeNo },
    });
 
-   const appUrl = process.env.APP_URL ?? "https://localhost:3000";
+   const appUrl = process.env.APP_URL ?? "http://localhost:3000";
    console.log(`✔ ${email} → STORE_MANAGER, branch ${storeNo}`);
    console.log(`→ ${appUrl}/signup?token=${token}`);
    console.log(`  expires ${inviteExpiresAt.toLocaleString()} — send it privately, it is shown only once`);
