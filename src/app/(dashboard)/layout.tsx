@@ -1,7 +1,10 @@
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { getCurrentUser } from "@/lib/auth/dal";
 
-export default function DashboardLayout({ children }: LayoutProps<"/">) {
+export default async function DashboardLayout({ children }: LayoutProps<"/">) {
+    await getCurrentUser(); // G2 / NFR4: real auth check — proxy.ts is only optimistic
+
     return (
         <div className="flex h-dvh">
             <Sidebar />
