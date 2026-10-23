@@ -1,12 +1,16 @@
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { getCurrentUser } from "@/lib/auth/dal";
+import { readFlash } from "@/lib/flash";
+import { FlashToast } from "./_components/FlashToast";
 
 export default async function DashboardLayout({ children }: LayoutProps<"/">) {
     const user = await getCurrentUser(); // G2 / NFR4: real auth check — proxy.ts is only optimistic
+    const flash = await readFlash();
 
     return (
         <div className="flex h-dvh">
+            <FlashToast flash={flash} name={user.name} />
             <Sidebar user={user}/>
             <div className="flex min-w-0 flex-1 flex-col">
                 <Header user={user}/>

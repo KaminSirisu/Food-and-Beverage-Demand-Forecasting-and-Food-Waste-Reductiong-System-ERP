@@ -7,6 +7,7 @@ import { LoginSchema, SignupSchema, type FormState } from "@/lib/auth/schema";
 import { dummyHash, hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSession, deleteSession } from "@/lib/auth/session";
 import { findValidInvite, hashToken } from "@/lib/auth/invite";
+import { setFlash } from "@/lib/flash";
 
 const INVALID_LOGIN = "Invalid email or password";
 
@@ -29,6 +30,7 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
     if (!user?.passwordHash || !ok || storeNo === undefined) return { message: INVALID_LOGIN, values: { email } };
 
     await createSession({ userId: user.id, role: user.role, storeNo });
+    await setFlash("login");
     await db.auditLog.create({ data: { actor: user.id, action: "LOGIN", entity: "app_user", entityId: user.id } } ); // NFR5
     redirect("/");
 }
@@ -57,6 +59,7 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
     if (count === 0) return { message: "This invite link is no longer valid. Ask for a new one." };
     // Role and branch come from the invite row — never from the form.
     await createSession({ userId: invite.id, role: invite.role, storeNo });
+    await setFlash("signup");
     await db.auditLog.create({ data: { actor: invite.id, action: "SIGNUP", entity: "app_user", entityId: invite.id } }); // NFR5
     redirect("/");
 }
