@@ -1,7 +1,11 @@
+import { LogOut } from "lucide-react";
 import { NAV_SECTIONS } from "@/components/layout/nav-config";
 import { NavLink } from "@/components/layout/NavLink";
+import { logout } from "@/app/(auth)/actions";
+import type { CurrentUser } from "@/lib/auth/dal";
+import { initials, ROLE_LABEL } from "@/lib/user-display";
 
-export function Sidebar() {
+export function Sidebar({ user }: { user: CurrentUser }) {
   return (
     <aside className="flex w-72 shrink-0 flex-col bg-slate-800 px-4 py-6 text-slate-300">
       {/* Brand */}
@@ -34,12 +38,25 @@ export function Sidebar() {
       {/* User card pinned to bottom */}
       <div className="mt-auto flex items-center gap-3 rounded-xl bg-slate-700/60 p-3">
         <span className="grid size-10 shrink-0 place-items-center rounded-full bg-indigo-500 text-sm font-semibold text-white">
-          SK
+          {initials(user.name)}
         </span>
-        <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-white">Somchai K.</p>
-          <p className="truncate text-xs text-slate-400">Store Manager · Central Flagship</p>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-white">{user.name}</p>
+          <p className="truncate text-xs text-slate-400">
+            {ROLE_LABEL[user.role]} · {user.branchName}
+          </p>
         </div>
+        {/* Server action in a plain form: works with zero client JS. */}
+        <form action={logout}>
+          <button
+            type="submit"
+            aria-label="Log out"
+            title="Log out"
+            className="grid size-8 place-items-center rounded-lg text-white hover:bg-slate-600 hover:text-red-500"
+          >
+            <LogOut className="size-4" aria-hidden />
+          </button>
+        </form>
       </div>
     </aside>
   );

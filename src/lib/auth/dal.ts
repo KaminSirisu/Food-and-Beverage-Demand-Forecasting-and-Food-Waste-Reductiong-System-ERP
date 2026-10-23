@@ -19,9 +19,16 @@ export const getCurrentUser = cache(async () => {
     const { userId, storeNo } = await verifySession();
     const user = await db.user.findUnique({
         where: { id: userId },
-        select: { id: true, name: true, email: true, role: true },
+        select: { 
+            id: true, name: true, email: true, role: true,
+            // G2: only the branch in this session, with its display name
+            branches: { where: { storeNo }, select: { branch: { select: { name: true } } } },
+        },
     });
     // Valid cookie but user deleted -> clear the cookie via /logout (a page can't delete cookies itself).
     if (!user) redirect("/logout");
-    return { ...user, storeNo };
+    const { branches, ...rest } = user;
+    return { ...rest, storeNo, branchName: branches[0]?.branch.name ?? `Branch ${storeNo}` };
 });
+
+export type CurrentUser = Awaited<ReturnType<typeof getCurrentUser>>;

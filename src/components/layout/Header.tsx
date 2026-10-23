@@ -1,6 +1,8 @@
 import { Bell, FileText } from "lucide-react";
+import type { CurrentUser } from "@/lib/auth/dal";
+import { initials } from "@/lib/user-display";
 
-export function Header() {
+export function Header({ user }: { user: CurrentUser }) {
     return (
         <header className="flex h-16 shrink-0 items-center gap-4 border-b border-slate-200 bg-white px-6">
             <p className="text-sm text-slate-500">Sat 3 Oct 2026 · 13:42</p>
@@ -34,8 +36,11 @@ export function Header() {
                     <Bell size={20} aria-hidden />
                     <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-red-500 text-[10px] font-semibold text-white">5</span>
                 </button>
-                <span className="grid size-10 place-items-center rounded-full bg-indigo-500 text-sm font-semibold text-white">
-                    SK
+                <span
+                    title={user.name}
+                    className="grid size-10 place-items-center rounded-full bg-indigo-500 text-sm font-semibold text-white"
+                >
+                    {initials(user.name)}
                 </span>
             </div>
         </header>
