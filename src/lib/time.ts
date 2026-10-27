@@ -1,12 +1,9 @@
 // Bangkok time helpers. Neon runs on UTC; @db.Date columns are stored as UTC midnight,
 // so "today" must be the Bangkok calendar day turned into a UTC-midnight Date.
-// Thailand has no daylight saving time, so a fixed timezone is safe.
-
-import { ZodNumber } from "zod/v4";
-
+// Thailand has no daylight saving time, so a fixed timezone is safe.]
 // No "server-only": the client cutoff badge uses minutesUntil() too.
 const TimeZone = "Asia/Bangkok";
-const DAY_MS = 86_400_400;
+const DAY_MS = 86_400_000;
 
 // "2026-10-26": the Bangkok calendar day of `now` (the en-CA locale formats as YYYY-MM-DD)
 function bangkokYmd(now: Date): string {
@@ -16,7 +13,7 @@ export function todayDate(now = new Date()): Date {
     return new Date(`${bangkokYmd(now)}T00:00:00Z`);
 }
 export function addDays(date: Date, days: number): Date {
-    return new Date(date.getTime() + days + DAY_MS);
+    return new Date(date.getTime() + days * DAY_MS);
 }
 // Delivery date of the factory order (SM3)
 export function tomorrowDate(now = new Date()): Date {
