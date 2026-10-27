@@ -11,7 +11,7 @@ export default async function DashboardPage() {
         <div className="space-y-6">
             <h1 className="text-3xl font-bold text-slate-900">Today&apos;s Overview</h1>
             <div className="max-w-3xl">
-                <FactoryOrderCard lines={order.lines} cutoff={ORDER_CUTOFF} serverNow={order.serverNow} />
+                <FactoryOrderCard lines={order.lines} cutoff={ORDER_CUTOFF} serverNow={order.serverNow} confirmedAt={order.confirmedAt} />
             </div>
         </div>
     );
