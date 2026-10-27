@@ -99,7 +99,6 @@ export function FactoryOrderCard({ lines, cutoff, serverNow, confirmedAt }: Prop
                     <button
                         type="button"
                         disabled={locked || reviewing}
-                        // TODO(Lesson 5): call the confirmOrder server action
                         onClick={() => setReviewing(true)}
                         className="rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
