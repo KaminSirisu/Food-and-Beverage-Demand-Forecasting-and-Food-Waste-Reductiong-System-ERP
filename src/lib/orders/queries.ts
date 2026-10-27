@@ -9,6 +9,7 @@ export type OrderData = {
     lines: OrderInputs[]; // only SKUs that have a tomorrow forecast
     wasteRiskThreshold: number; // BranchThreshold.wasteRiskPct (branch default)
     confirmedAt: Date | null; // last time tomorrow's order was confirmed
+    serverNow: number; // the instant used for today/tomorrow — the client cutoff clock starts here
 };
 
 export async function getOrderInputs(storeNo: number, now = new Date()): Promise<OrderData> {
@@ -81,5 +82,5 @@ export async function getOrderInputs(storeNo: number, now = new Date()): Promise
             savedOrdered: savedBySku.get(s.itemNo) ?? null,
         }));
 
-    return { lines, wasteRiskThreshold: Number(threshold?.wasteRiskPct ?? 10), confirmedAt };
+    return { lines, wasteRiskThreshold: Number(threshold?.wasteRiskPct ?? 10), confirmedAt, serverNow: now.getTime() };
 }
