@@ -6,7 +6,7 @@ import { getOrderInputs, type OrderData } from "@/lib/orders/queries";
 import { addDays, todayDate } from "@/lib/time";
 import { riskSkus, sumValue, type RiskSku } from "./risk";
 
-export type WasteDay = { date: string, value: number }; // date = "YYYY-MM-DD"(Bangkok day)
+export type WasteDay = { date: string, value: number }; // date = "YYYY-MM-DD" (Bangkok day)
 export type PromoCandidate = RiskSku & {
     discountPct: number;
     status: string; // Promotion.posStatus (PENDING | LIVE | NONE), or SUGGESTED when no row exists yet
@@ -23,7 +23,7 @@ export type DashboardData = {
 
 export async function getDashboard(storeNo: number, now = new Date()): Promise<DashboardData> {
     const today = todayDate(now);
-    const weekStart = addDays(today, - 6);
+    const weekStart = addDays(today, -6);
 
     const [order, waste, promotions, threshold] = await Promise.all([
         getOrderInputs(storeNo, now),
@@ -52,11 +52,11 @@ export async function getDashboard(storeNo: number, now = new Date()): Promise<D
 
     // A promo already created today keeps its own discount and POS status
     const promoByItem = new Map(promotions.map((p) => [p.itemNo, p]));
-    const defaultDiscount = Number(threshold?.discountPct ?? 0);
+    const defaultDiscount = Number(threshold?.discountPct ?? 20);
     const promos = risks
         .filter((r) => r.kind === "WASTE")
         .map((r) => {
-            const saved = promoByItem.get(r.itemNo)
+            const saved = promoByItem.get(r.itemNo);
             return {
                 ...r,
                 discountPct: saved ? Number(saved.discountPct) : defaultDiscount,
