@@ -4,7 +4,6 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { DAILY_WASTE_TARGET, ORDER_CUTOFF } from "@/lib/config";
 import { getDashboard } from "@/lib/dashboard/queries";
 import { baht } from "@/lib/format";
-import { formatHeaderTime } from "@/lib/time";
 import { AutoPromotionsCard } from "./_components/AutoPromotionsCard";
 import { KpiCard } from "./_components/KpiCard";
 import { FactoryOrderCard } from "./_components/factory-order/FactoryOrderCard";
@@ -21,11 +20,11 @@ export default async function DashboardPage() {
     const overTarget = data.wasteToday > DAILY_WASTE_TARGET;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4">
             <div>
                 <h1 className="text-3xl font-bold text-slate-900">Today&apos;s Overview</h1>
                 <p className="mt-1 text-sm text-slate-500">
-                    {user.branchName} · {formatHeaderTime(new Date(order.serverNow))}
+                    {user.branchName}
                 </p>
             </div>
 

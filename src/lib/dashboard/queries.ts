@@ -73,12 +73,20 @@ export async function getDashboard(storeNo: number, now = new Date()): Promise<D
     };
 }
 
-/** S1: newest finished D365 import. Any branch, because one file holds all 36. null = nothing loaded yet. */
-export async function getLastSync(): Promise<Date | null> {
+export type SyncStatus = {
+    serverNow: number; // the header clock starts here
+    lastSync: { at: number; source: string } | null; // null = nothing loaded yet
+};
+
+/** S1: newest finished D365 import. Any branch, because one file holds all 36. */
+export async function getSyncStatus(now = new Date()): Promise<SyncStatus> {
     const batch = await db.importBatch.findFirst({
         where: { status: { in: ["LOADED", "LOADED_WITH_ERRORS"] }, finishedAt: { not: null } },
         orderBy: { finishedAt: "desc" },
-        select: { finishedAt: true },
+        select: { finishedAt: true, source: true },
     });
-    return batch?.finishedAt ?? null;
+    return {
+        serverNow: now.getTime(),
+        lastSync: batch?.finishedAt ? { at: batch.finishedAt.getTime(), source: batch.source } : null,
+    };
 }
