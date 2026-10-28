@@ -8,7 +8,7 @@ const ACTION = "rounded-lg border border-slate-300 px-3 py-1 text-xs font-semibo
 export function TopRiskTable({ risks }: { risks: RiskSku[] }) {
     return (
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
-            <h2 className="text-xl font-bold text-slate-900">Top Risk Skus</h2>
+            <h2 className="text-xl font-bold text-slate-900">Top Risk SKUs</h2>
             {risks.length === 0 ? (
                 <p className="mt-4 text-sm text-slate-500">No shortage or waste risk for the rest of today.</p>
             ) : (
@@ -41,7 +41,7 @@ export function TopRiskTable({ risks }: { risks: RiskSku[] }) {
                                     </td>
                                     <td className="text-right">
                                         {r.kind === 'SHORTAGE' ? (
-                                            <a href="#factory-order">Adjust Order</a>
+                                            <a href="#factory-order" className={ACTION}>Adjust Order</a>
                                         ) : (
                                             <Link href={`/promotions?sku=${encodeURIComponent(r.itemNo)}`} className={ACTION}>View Promo</Link>
                                         )}
