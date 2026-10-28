@@ -109,11 +109,16 @@ async function rebuildDailySales(touched: Set<string>) {
   for (const key of touched) {
     const [store, day] = key.split("|");
     await db.$executeRaw`
-      INSERT INTO daily_sales (store_no, item_no, sale_date, qty_sold, qty_returned, qty_before_cutoff, sales_value, last_sale_time, updated_at)
+      INSERT INTO daily_sales (store_no, item_no, sale_date, qty_sold, qty_returned, qty_before_cutoff, price_before_cutoff, discount_before_cutoff, gross_before_cutoff, sales_value, last_sale_time, updated_at)
       SELECT store_no, item_no, sale_date,
              COALESCE(SUM(-quantity) FILTER (WHERE quantity < 0), 0),
              COALESCE(SUM(quantity)  FILTER (WHERE quantity > 0), 0),
              COALESCE(SUM(-quantity) FILTER (WHERE quantity < 0 AND sale_time < ${CUTOFF}::time), 0),
+            -- Model features "price" and "discount_pct": sales before 13:30 only (no data leakage)
+             (ARRAY_AGG(price ORDER BY sale_time DESC, transaction_no DESC, line_no DESC)
+             FILTER (WHERE quantity < 0 AND sale_time < ${CUTOFF}::time))[1],
+             COALESCE(SUM(ABS(discount_amount)) FILTER (WHERE quantity < 0 AND sale_time < ${CUTOFF}::time), 0),
+             COALESCE(SUM(price * -quantity)    FILTER (WHERE quantity < 0 AND sale_time < ${CUTOFF}::time), 0),
              -SUM(total_amount),
              MAX(sale_time) FILTER (WHERE quantity < 0),
              now()
@@ -124,6 +129,9 @@ async function rebuildDailySales(touched: Set<string>) {
         qty_sold = EXCLUDED.qty_sold,
         qty_returned = EXCLUDED.qty_returned,
         qty_before_cutoff = EXCLUDED.qty_before_cutoff,
+        price_before_cutoff = EXCLUDED.price_before_cutoff,
+        discount_before_cutoff = EXCLUDED.discount_before_cutoff,
+        gross_before_cutoff = EXCLUDED.gross_before_cutoff,
         sales_value = EXCLUDED.sales_value,
         last_sale_time = EXCLUDED.last_sale_time,
         updated_at = now()`;
