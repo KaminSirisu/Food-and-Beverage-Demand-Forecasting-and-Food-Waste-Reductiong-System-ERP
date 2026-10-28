@@ -9,6 +9,7 @@ import { AutoPromotionsCard } from "./_components/AutoPromotionsCard";
 import { KpiCard } from "./_components/KpiCard";
 import { FactoryOrderCard } from "./_components/factory-order/FactoryOrderCard";
 import { OrderEmptyState } from "./_components/factory-order/OrderEmptyState";
+import { WasteChart } from "./_components/WasteChart";
 import { TopRiskTable } from "./_components/TopRiskTable";
 
 export const metadata: Metadata = { title: "Dashboard & Pre-Rush Alerts" };
@@ -45,7 +46,6 @@ export default async function DashboardPage() {
                 />
             </div>
 
-            {/* Lesson 8 adds the KPI row above and the Auto-Promotions column beside the order card */}
             <div className="grid gap-6 xl:grid-cols-5">
                 <div className="xl:col-span-3">
                     {order.lines.length === 0 ? (
@@ -63,6 +63,7 @@ export default async function DashboardPage() {
                     <AutoPromotionsCard promos={data.promos} />
                 </div>
             </div>
+            <WasteChart days={data.wasteLast7Days} />
             <TopRiskTable risks={data.topRisk} />
         </div>
     );
