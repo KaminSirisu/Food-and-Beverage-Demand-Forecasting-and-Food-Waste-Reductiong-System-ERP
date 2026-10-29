@@ -39,6 +39,6 @@ export async function POST(req: NextRequest) {
   }
 
   // TODO(Member B): also save the original file (SharePoint /archive already keeps it — confirm with L3).
-  const result = await loadSalesEntry(batch.id, Readable.from(body));
+  const result = await loadSalesEntry(batch.id, Readable.from(body),{ forecast: true });
   return NextResponse.json(result, { status: result.status === "FAILED" ? 422 : 200 });
 }
