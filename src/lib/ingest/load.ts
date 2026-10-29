@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { db } from "../db";
 import { SalesEntryRow, type SalesLineInput } from "./columns";
 import { HeaderError, readSalesEntry } from "./parse";
+import { runForecastAfterLoad, type TriggerResult } from "../forecast/trigger";
 
 const BATCH_SIZE = 1000;
 const MAX_STORED_ERRORS = 500; // keep the error table small; the count is always exact
@@ -17,9 +18,10 @@ export interface LoadResult {
   period: { from: string | null; to: string | null };
   errors: { row: number; column: string | null; message: string }[];
   message?: string;
+  forecast?: TriggerResult | { error: string };
 }
 
-export async function loadSalesEntry(batchId: string, input: string | Readable): Promise<LoadResult> {
+export async function loadSalesEntry(batchId: string, input: string | Readable , opts: { forecast?: boolean } = {}): Promise<LoadResult> {
   await db.importBatch.update({ where: { id: batchId }, data: { status: "PROCESSING" } });
 
   const active = new Set(
@@ -100,8 +102,12 @@ export async function loadSalesEntry(batchId: string, input: string | Readable):
   ]);
   await audit(batchId, { status, total, loaded, skipped, rejected });
 
-  // TODO(Leader, L7): after a successful load that includes today, trigger the 13:30 forecast run.
-  return { processingId: batchId, status, rows: { total, loaded, skipped, rejected }, period: { from: minDate, to: maxDate }, errors: errors.slice(0, 20) };
+    // L7: a daily file (not backfill) triggers tomorrow's forecast. A forecast failure never fails the load.
+  let forecast: LoadResult["forecast"];
+  if (opts.forecast && maxDate) {
+    forecast = await runForecastAfterLoad(maxDate).catch((e) => ({ error: (e as Error).message }));
+  }
+  return { processingId: batchId, status, rows: { total, loaded, skipped, rejected }, period: { from: minDate, to: maxDate }, errors: errors.slice(0, 20), forecast };
 }
 
 /** Recompute DailySales for each (store, day) the file touched — from all lines, so re-sent files stay correct. */
