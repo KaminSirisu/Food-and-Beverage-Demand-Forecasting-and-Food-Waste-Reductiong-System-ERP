@@ -23,7 +23,7 @@ function num(d: Prisma.Decimal | null): number | null {
     return d == null ? null : d.toNumber();
 }
 
-function toRow(r: BranchThreshold): ThresholdRow {
+export function toRow(r: BranchThreshold): ThresholdRow {
     return {
         opportunityCheckAt: r.opportunityCheckAt,
         opportunityValue: num(r.opportunityValue),
