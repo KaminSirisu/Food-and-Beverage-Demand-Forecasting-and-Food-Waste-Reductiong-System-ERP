@@ -14,3 +14,7 @@ export const DAILY_WASTE_TARGET = 1200;
 
 // Header: the D365 sync shows as "Stale" if the last loaded batch is older than this
 export const SYNC_STALE_HOURS = 4;
+
+// SM5 / SM6: max units each category's display holds — the base for % alert limits.
+// Demo values (Bread 60 and Pound cake 16 from the mockup). In a real store the manager would set these.
+export const DISPLAY_CAPACITY: Record<string, number> = { SB: 60, ST: 30, SC: 20, SCP: 16 };
