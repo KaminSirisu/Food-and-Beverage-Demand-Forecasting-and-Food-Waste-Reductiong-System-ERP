@@ -1,5 +1,6 @@
 // Master data: the flagship branch and the 8 in-scope SKUs (from the slide 2 table).
 import { db } from "../src/lib/db";
+import { BRANCH_DEFAULTS } from "../src/lib/thresholds/defaults";
 
 const SKUS = [
   { itemNo: "SC220", nameTh: "ชิฟฟ่อนมะพร้าวอ่อน", nameEn: "Young coconut chiffon", categoryCode: "SC", categoryName: "Cake slice", price: 13, shelfLifeDays: 1 },
@@ -18,9 +19,13 @@ async function main() {
   for (const s of SKUS) {
     await db.sku.upsert({ where: { itemNo: s.itemNo }, update: { ...s, inScope: true }, create: { ...s, inScope: true } });
   }
-  // Branch default thresholds (categoryCode = null). Unique keys treat NULLs as distinct, so check first.
-  const hasDefault = await db.branchThreshold.findFirst({ where: { storeNo: 801, categoryCode: null } });
-  if (!hasDefault) await db.branchThreshold.create({ data: { storeNo: 801 } });
+  // Branch default thresholds (categoryCode = null). Unique keys treat NULLs as distinct, so no upsert: find first.
+  // Repair the row too: renaming a column in Lesson 1 left NULLs, and the default row must always be complete.
+  const current = await db.branchThreshold.findFirst({ where: { storeNo: 801, categoryCode: null } });
+  if (!current) await db.branchThreshold.create({ data: { storeNo: 801, ...BRANCH_DEFAULTS } });
+  else if (current.opportunityValue == null || current.cheerValue == null) {
+    await db.branchThreshold.update({ where: { id: current.id }, data: BRANCH_DEFAULTS });
+  }
   console.log("seeded: branch 801, 8 SKUs, default thresholds");
 }
 
