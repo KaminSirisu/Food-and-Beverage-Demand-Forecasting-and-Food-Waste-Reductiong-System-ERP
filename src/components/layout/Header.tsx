@@ -7,8 +7,6 @@ import { HeaderStatus } from "./HeaderStatus";
 export function Header({ user, sync }: { user: CurrentUser; sync: SyncStatus }) {
     return (
         <header className="flex h-16 shrink-0 items-center gap-4 border-b border-slate-200 bg-white px-6">
-            <p className="text-sm text-slate-500">Sat 3 Oct 2026 · 13:42</p>
-
             <HeaderStatus {...sync} />
 
             <div className="ml-auto flex items-center gap-3">

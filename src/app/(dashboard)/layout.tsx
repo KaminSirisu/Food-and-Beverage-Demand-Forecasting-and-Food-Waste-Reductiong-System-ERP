@@ -15,7 +15,7 @@ export default async function DashboardLayout({ children }: LayoutProps<"/">) {
             <Sidebar user={user}/>
             <div className="flex min-w-0 flex-1 flex-col">
                 <Header user={user} sync={sync} />
-                <main className="flex-1 overflow-y-auto bg-slate-50 p-8">
+                <main className="relative flex-1 overflow-y-auto bg-slate-50 p-8">
                     {children}
                 </main>
             </div>

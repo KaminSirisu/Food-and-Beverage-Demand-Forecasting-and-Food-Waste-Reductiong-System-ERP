@@ -281,20 +281,30 @@ model OrderLine {
 
 // ─────────────────────────────── Alerts & promotions (SM5, SM6, S7, SM9, SM10) ───────────────────────────────
 
-/// categoryCode null = branch default; a row with a category overrides it.
+/// SM5 / SM6: how an alert limit is measured. PCT = % of the category's max display capacity (lib/config.ts).
+enum ThresholdUnit {
+  UNITS
+  PCT
+}
+
+/// categoryCode null = branch default (every field filled, see lib/thresholds/defaults.ts).
+/// A row with a category overrides it field by field: NULL = inherit the default.
+/// No @default on the value columns, or a new override row would be filled in instead of inheriting.
 model BranchThreshold {
-  id                  String   @id @default(uuid())
-  storeNo             Int      @map("store_no")
-  categoryCode        String?  @map("category_code")
-  opportunityCheckAt  String   @default("14:00") @map("opportunity_check_at") // HH:mm — open decision: 14:00 vs 14:30
-  opportunityMaxUnits Int      @default(3) @map("opportunity_max_units")
-  cheerCheckAt        String   @default("18:00") @map("cheer_check_at") // open decision: 17:00 vs 18:00
-  cheerMinPct         Decimal  @default(10) @map("cheer_min_pct") @db.Decimal(5, 2)
-  wasteRiskPct        Decimal  @default(10) @map("waste_risk_pct") @db.Decimal(5, 2)
-  discountPct         Decimal  @default(20) @map("discount_pct") @db.Decimal(5, 2)
-  updatedBy           String?  @map("updated_by")
-  updatedAt           DateTime @updatedAt @map("updated_at")
-  branch              Branch   @relation(fields: [storeNo], references: [storeNo])
+  id                 String         @id @default(uuid())
+  storeNo            Int            @map("store_no")
+  categoryCode       String?        @map("category_code")
+  opportunityCheckAt String?        @map("opportunity_check_at") // HH:mm, default row only — open decision: 14:00 vs 14:30
+  opportunityValue   Decimal?       @map("opportunity_value") @db.Decimal(6, 2) // SM5: remaining ≤ this
+  opportunityUnit    ThresholdUnit? @map("opportunity_unit")
+  cheerCheckAt       String?        @map("cheer_check_at") // default row only — open decision: 17:00 vs 18:00
+  cheerValue         Decimal?       @map("cheer_value") @db.Decimal(6, 2) // SM6: remaining ≥ this
+  cheerUnit          ThresholdUnit? @map("cheer_unit")
+  wasteRiskPct       Decimal?       @map("waste_risk_pct") @db.Decimal(5, 2) // S7
+  discountPct        Decimal?       @map("discount_pct") @db.Decimal(5, 2) // SM9 auto-discount
+  updatedBy          String?        @map("updated_by") // app_user.id
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  branch             Branch         @relation(fields: [storeNo], references: [storeNo])
 
   @@unique([storeNo, categoryCode])
   @@map("branch_threshold")
