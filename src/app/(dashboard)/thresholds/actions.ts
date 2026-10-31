@@ -42,7 +42,8 @@ const SaveInput = z.object({
 export type SaveThresholdsInput = z.infer<typeof SaveInput>;
 export type SaveResult = { ok: true } | { ok: false; error: string };
 
-type Values = Omit<SaveThresholdsInput["categories"][number], "code">;
+export type CategoryInput = SaveThresholdsInput["categories"][number];
+type Values = Omit<CategoryInput, "code">;
 
 // Form shape → table columns. The branch default fits too: its fields are the same, just never null.
 function columns(v: Values) {

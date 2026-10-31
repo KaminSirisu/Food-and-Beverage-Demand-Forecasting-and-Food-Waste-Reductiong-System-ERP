@@ -15,7 +15,8 @@ export default async function ThresholdsPage() {
                 <h1 className="text-3xl font-bold text-slate-900">Branch Alert Thresholds</h1>
                 <p className="mt-1 text-sm text-slate-500">{user.branchName} · set by the Store Manager</p>
             </div>
-            <ThresholdsForm data={data} />
+            {/* key: after Save, refresh() brings a new lastEdited → the form remounts with the saved values */}
+            <ThresholdsForm key={data.lastEdited?.at.toISOString() ?? "new"} data={data} />
         </div>
     )
 }
