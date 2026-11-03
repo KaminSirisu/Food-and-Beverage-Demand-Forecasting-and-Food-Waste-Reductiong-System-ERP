@@ -71,7 +71,7 @@ export function FactoryOrderCard({ lines, cutoff, serverNow, confirmedAt }: Prop
         })
 
     return (
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <section id="factory-order" className="scroll-mt-6 rounded-2xl border border-slate-200 bg-white p-6">
             <h2 className="text-xl font-bold text-slate-900">Tomorrow&apos;s Factory Order</h2>
             {mode === "all" && (
                 <p className="mt-1 text-sm text-slate-500">

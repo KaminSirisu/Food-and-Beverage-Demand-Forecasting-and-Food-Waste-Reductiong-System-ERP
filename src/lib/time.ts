@@ -46,6 +46,10 @@ export function formatHeaderTime(now = new Date()): string {
 export function formatClock(date: Date): string {
     return new Intl.DateTimeFormat("en-GB", { timeZone: TimeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
 }
+// "27 Oct" — for "last sync" when it wasn't today
+export function formatShortDate(date: Date): string {
+    return new Intl.DateTimeFormat("en-GB", { timeZone: TimeZone, day: "numeric", month: "short" }).format(date);
+}
 // Bangkok midnight as a real instant (UTC+7, no DST) — for timestamp columns like taken_at
 export function startOfToday(now = new Date()): Date {
     return new Date(todayDate(now).getTime() - 7 * 3_600_000);
