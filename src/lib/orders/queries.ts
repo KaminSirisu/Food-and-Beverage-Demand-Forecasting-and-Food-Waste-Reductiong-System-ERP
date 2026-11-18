@@ -20,7 +20,7 @@ export async function getOrderInputs(storeNo: number, now = new Date()): Promise
     const [skus, forecasts, snapshots, saved, threshold] = await Promise.all([
         db.sku.findMany({
             where: { inScope: true },
-            select: { itemNo: true, nameTh: true, price: true, shelfLifeDays: true },
+            select: { itemNo: true, nameTh: true, categoryCode: true, price: true, shelfLifeDays: true },
             orderBy: { itemNo: "asc" },
         }),
         db.forecast.findMany({
@@ -74,6 +74,7 @@ export async function getOrderInputs(storeNo: number, now = new Date()): Promise
         .map((s) => ({
             itemNo: s.itemNo,
             nameTh: s.nameTh,
+            categoryCode: s.categoryCode,
             price: Number(s.price),
             shelfLifeDays: s.shelfLifeDays,
             restOfDay: restOfDay.get(s.itemNo) ?? 0,

@@ -8,7 +8,7 @@ function expectFields(actual: OrderRow, expected: Partial<OrderRow>) {
     assert.deepStrictEqual(picked, expected);
 }
 
-const base = { nameTh: "", price: 10, savedOrdered: null };
+const base = { nameTh: "", categoryCode: "SB", price: 10, savedOrdered: null };
 const SB078: OrderInputs = { ...base, itemNo: "SB078", shelfLifeDays: 2, leftNow: 34, restOfDay: 15, tomorrow: 33.6 };
 const ST068: OrderInputs = { ...base, itemNo: "ST068", shelfLifeDays: 1, leftNow: 22, restOfDay: 4, tomorrow: 8.6 };
 const SC220: OrderInputs = { ...base, itemNo: "SC220", shelfLifeDays: 1, leftNow: 5, restOfDay: 8, tomorrow: 14.5 };
