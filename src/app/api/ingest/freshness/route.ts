@@ -3,14 +3,13 @@
 // data is "stale" when the last successful load is more than 90 minutes old.
 import { NextResponse } from "next/server";
 import { STORE_NO } from "@/lib/config";
-import { db } from "@/lib/db";
 import { dataFreshness } from "@/lib/ingest/batch";
+import { createAlert } from "@/lib/alerts/create";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic"; // never cache: the answer changes every minute
 
 const STALE_AFTER_MINUTES = 90;
-const ONE_HOUR_MS = 60 * 60 * 1000;
 
 export async function GET() {
   // Step 1: find the last file that loaded OK, and check if it is older than 90 minutes.
@@ -23,21 +22,15 @@ export async function GET() {
   }
 
   // Step 3: if data is stale, create a STALE_DATA alert for the store manager.
-  // Only one alert per hour, otherwise every page refresh would add a new alert.
+  // createAlert() keeps it to one per hour (dedupeSince) and pushes it live to open tabs (S10).
   if (freshness.stale) {
-    const alertInLastHour = await db.alert.findFirst({
-      where: { type: "STALE_DATA", createdAt: { gt: new Date(Date.now() - ONE_HOUR_MS) } },
+    await createAlert(STORE_NO, {
+      type: "STALE_DATA",
+      itemNo: null,
+      title: "Sales data delayed",
+      body: `No D365 data for ${ageMinutes ?? "∞"} min (last file: ${freshness.fileName ?? "none"}). Alerts are using older data.`,
+      actionUrl: "/",
     });
-    if (!alertInLastHour) {
-      await db.alert.create({
-        data: {
-          storeNo: STORE_NO,
-          type: "STALE_DATA",
-          message: `Sales data is ${ageMinutes ?? "∞"} min old (last file: ${freshness.fileName ?? "none"})`,
-          actionUrl: "/notifications",
-        },
-      });
-    }
   }
 
   // Step 4: send the result back as JSON.

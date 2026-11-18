@@ -26,7 +26,7 @@ export function alertsFromRisks(risks: RiskSku[]): AlertDraft[] {
 }
 
 // De-dupe window: the same (store, type, item) inside it is not created again.
-// STALE_DATA keeps the old freshness-route rule (1 per hour); SKU alerts are once per Bangkok days.
+// STALE_DATA keeps the old freshness-route rule (1 per hour); SKU alerts are once per Bangkok day.
 export function dedupeSince(type: AlertType, now: Date): Date {
     return type === "STALE_DATA" ? new Date(now.getTime() - ONE_HOUR_MS) : startOfToday(now);
 }

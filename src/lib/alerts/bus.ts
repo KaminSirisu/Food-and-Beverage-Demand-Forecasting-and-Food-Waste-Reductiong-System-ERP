@@ -1,4 +1,4 @@
-// In-process wake-up signal for the SSE stream (lesson 5). NOT the source of truth: the data is.
+// In-process wake-up signal for the SSE stream (lesson 5). NOT the source of truth: the database is.
 // It only makes an alert created in this same Node process appear at once, instead of on the next 5s poll.
 import "server-only";
 import { EventEmitter } from "node:events";

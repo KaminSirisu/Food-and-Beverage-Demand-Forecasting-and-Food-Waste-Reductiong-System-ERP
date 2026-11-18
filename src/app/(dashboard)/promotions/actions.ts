@@ -9,6 +9,8 @@ import { getPromotions } from "@/lib/promotions/queries";
 import { canPush } from "@/lib/promotions/rules";
 import { BRANCH_DEFAULTS } from "@/lib/thresholds/defaults";
 import { todayDate } from "@/lib/time";
+import { createAlert } from "@/lib/alerts/create";
+import { formatClock } from "@/lib/time"; // add to the existing "@/lib/time import"
 
 export type PromoResult = { ok: true } | { ok: false; error: string };
 
@@ -55,6 +57,15 @@ export async function pushDiscount(input: unknown): Promise<PromoResult> {
             },
         }),
     ]);
+
+    // S10: tell the bell (best effort: the push is already saved)
+    await createAlert(storeNo, {
+        type: "PROMOTION",
+        itemNo: row.itemNo,
+        title: `Promotion pushed · ${row.itemNo} ${row.nameTh}`,
+        body: `${row.discountPct}% discount live on POS since ${formatClock(now)}.`,
+        actionUrl: "/promotions",
+    }, userId, now).catch((err) => console.error("createAlert failed", err));
 
     refresh();
     return { ok: true };
