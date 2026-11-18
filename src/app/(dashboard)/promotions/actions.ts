@@ -8,9 +8,8 @@ import { db } from "@/lib/db";
 import { getPromotions } from "@/lib/promotions/queries";
 import { canPush } from "@/lib/promotions/rules";
 import { BRANCH_DEFAULTS } from "@/lib/thresholds/defaults";
-import { todayDate } from "@/lib/time";
 import { createAlert } from "@/lib/alerts/create";
-import { formatClock } from "@/lib/time"; // add to the existing "@/lib/time import"
+import { formatClock, todayDate } from "@/lib/time"; // add to the existing "@/lib/time import"
 
 export type PromoResult = { ok: true } | { ok: false; error: string };
 

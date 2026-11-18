@@ -1,9 +1,9 @@
-// Alert engine (SM5, SM6, SM7): today's risks -> SHORTAGE_RISK / WASTE_RISK alerts.
+// Alert engine (SM5, SM6, S7): today's risks -> SHORTAGE_RISK / WASTE_RISK alerts.
 // Same inputs and rule as the dashboard Top Risk table, so the bell and the dashboard always agree.
 import "server-only";
-import { riskSkus } from "../dashboard/risk";
-import { getOrderInputs } from "../orders/queries";
-import { getBranchRules } from "../thresholds/queries";
+import { riskSkus } from "@/lib/dashboard/risk";
+import { getOrderInputs } from "@/lib/orders/queries";
+import { getBranchRules } from "@/lib/thresholds/queries";
 import { createAlert } from "./create";
 import { alertsFromRisks } from "./rules";
 
