@@ -1,17 +1,10 @@
 import { DAILY_WASTE_TARGET } from "@/lib/config";
 import type { WasteDay } from "@/lib/dashboard/queries";
-import { baht } from "@/lib/format";
+import { baht, niceStep } from "@/lib/format";
 
 // `date` is already a Bangkok day ("YYYY-MM-DD"), so format it as UTC, not shifted again
 const WEEKDAY = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" });
 const FULL_DAY = new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
-
-/** A round step (1, 2, 2.5 or 5 × 10ⁿ) that splits 0…max into about `lines` gridlines. max must be > 0. */
-function niceStep(max: number, lines = 4): number {
-    const raw = max / lines;
-    const magnitude = 10 ** Math.floor(Math.log10(raw));
-    return [1, 2, 2.5, 5, 10].map((m) => m * magnitude).find((s) => s >= raw) ?? raw;
-}
 
 type Props = { days: WasteDay[]; target?: number };
 
