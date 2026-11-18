@@ -11,4 +11,5 @@ export const BRANCH_DEFAULTS = {
     cheerUnit: "PCT",
     wasteRiskPct: 10,
     discountPct: 20,
+    autoPromotionEnabled: true, // SM9: Waste & Auto-Promotion engine switch
 } satisfies Omit<Prisma.BranchThresholdUncheckedCreateInput, "storeNo">;
