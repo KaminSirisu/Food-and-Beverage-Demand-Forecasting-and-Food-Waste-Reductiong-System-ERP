@@ -178,7 +178,7 @@ export function buildFeatureRows(sku: SkuContext, daily: DailyInput[], opts: Bui
         });
 
         const base = onSale[i] && active28 && !Number.isNaN(mean7);
-        const tomorrowOnSale = i + 1 < n ? onSale[i + 1] : false;
+        const tomorrowOnSale = i + 1 < n ? onSale[i + 1] : onSale[i]; // last day (live run at 13:30): D+1 is not known yet, assume it stays on sale
         const shareOr = Number.isNaN(share28) ? 0.5 : share28;
         rows.push({
             itemNo: sku.itemNo, date: toYmd(dates[i]), onSale: onSale[i],
