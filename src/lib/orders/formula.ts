@@ -7,6 +7,7 @@ import { AM_APPROVAL_PCT } from "@/lib/config";
 export type OrderInputs = {
     itemNo: string;
     nameTh: string;
+    categoryCode: string; // SB, ST, SC, SCP → which category thresholds apply (S7, SM9)
     price: number;
     shelfLifeDays: number;
     restOfDay: number; // Model 1: units still sold today after now (may be a decimal)

@@ -71,3 +71,23 @@ export async function getThresholds(storeNo: number): Promise<ThresholdsData> {
         lastEdited: defaultRow ? { at: defaultRow.updatedAt, by: editor?.name ?? null } : null,
     };
 }
+export type BranchRules = {
+    branch: Thresholds; // the default row, gaps filled from code defaults
+    engineOn: boolean; // SM9: Auto-Promotion engine switch (NULL = on)
+    forCategory: (categoryCode: string) => Thresholds; // category override → branch default, field by field
+};
+
+/** S7 / SM9: effective thresholds per category, for the alert and promotion rules. Server-side only (holds a function). */
+export async function getBranchRules(storeNo: number): Promise<BranchRules> {
+    const rows = await db.branchThreshold.findMany({ where: { storeNo } });
+    const defaultRow = rows.find((r) => r.categoryCode === null);
+    const branch = resolve(DEFAULT_THRESHOLDS, defaultRow ? toRow(defaultRow) : null);
+    const byCategory = new Map(
+        rows.filter((r) => r.categoryCode !== null).map((r) => [r.categoryCode as string, resolve(branch, toRow(r))]),
+    );
+    return {
+        branch,
+        engineOn: defaultRow?.autoPromotionEnabled ?? true,
+        forCategory: (code) => byCategory.get(code) ?? branch,
+    };
+}
