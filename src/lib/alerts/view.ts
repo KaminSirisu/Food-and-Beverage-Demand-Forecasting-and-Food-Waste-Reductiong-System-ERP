@@ -2,6 +2,7 @@
 import type { AlertType } from "@prisma/client";
 import { ALERT_META } from "./meta";
 import { splitMessage } from "./message";
+import { formatClock, formatShortDate, todayDate } from "@/lib/time";
 
 export type NotificationDto = {
     id: string;        // BigInt as a string: JSON.stringify throws on BigInt
@@ -57,4 +58,11 @@ export function applyReadOverrides(list: NotificationDto[], o: ReadOverrides): N
     return list.map((n) =>
         n.read || o.ids.has(n.id) || (upTo !== null && BigInt(n.id) <= upTo) ? { ...n, read: true } : n,
     );
+}
+
+// "13:40" for today, "18 Nov · 13:40" for older alerts — always Bangkok time, so server and client HTML match
+export function formatAlertTime(createdAt: number, now: number): string {
+    const d = new Date(createdAt);
+    const sameDay = todayDate(d).getTime() === todayDate(new Date(now)).getTime();
+    return sameDay ? formatClock(d) : `${formatShortDate(d)} · ${formatClock(d)}`;
 }
