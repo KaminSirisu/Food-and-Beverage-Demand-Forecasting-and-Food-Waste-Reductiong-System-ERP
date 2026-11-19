@@ -9,7 +9,7 @@ import { getPromotions } from "@/lib/promotions/queries";
 import { canPush } from "@/lib/promotions/rules";
 import { BRANCH_DEFAULTS } from "@/lib/thresholds/defaults";
 import { createAlert } from "@/lib/alerts/create";
-import { formatClock, todayDate } from "@/lib/time"; // add to the existing "@/lib/time import"
+import { formatClock, todayDate } from "@/lib/time";
 
 export type PromoResult = { ok: true } | { ok: false; error: string };
 

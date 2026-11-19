@@ -1,4 +1,4 @@
-// GET /api/notifications/stream - live notifications for the signed-in branch (510), as Server-Sent Events.
+// GET /api/notifications/stream - live notifications for the signed-in branch (S10), as Server-Sent Events.
 // ?after=<id> first connect: the newest id the page already rendered
 // Last-Event-ID header reconnect: sent by EventSource automatically (wins over ?after)
 // Events: alert (id = alert id, data = NotificationDto) ·  unread  (data = { count })  ·  ": ping" every 15s
@@ -16,7 +16,7 @@ const PING_MS = 15_000; // keeps proxies from closing an idle connection
 const RETRY_MS = 5_000; // browser waits this long before reconnecting
 
 export async function GET(req: NextRequest) {
-    // proxy.ts skips /api -> check the cookie here. 401, never redirect(): a redirect inside a stream is justs a broken stream.
+    // proxy.ts skips /api -> check the cookie here. 401, never redirect(): a redirect inside a stream is just a broken stream.
     const session = await decrypt(req.cookies.get(SESSION_COOKIE)?.value);
     if (!session) return new Response("unauthorized", { status: 401 });
     const { storeNo } = session; // G2: from the signed cookie, never the URL
@@ -32,7 +32,12 @@ export async function GET(req: NextRequest) {
             let busy = false;
             let again = false;
             const send = (text: string) => {
-                if (!closed) controller.enqueue(encoder.encode(text));
+                if (closed) return;
+                try {
+                    controller.enqueue(encoder.encode(text));
+                } catch {
+                    cleanup(); // stream already gone: stop timers and the bus listener now
+                }
             };
 
             // Poll tick and bus wake-up both call this. Never run two at once (they'd both send the same alerts):
@@ -73,7 +78,7 @@ export async function GET(req: NextRequest) {
                 closed = true;
                 clearInterval(poll);
                 clearInterval(ping);
-                off(); // the listener from Lesson 2: forgot this and every closed tab leaks one
+                off(); // the listener from Lesson 2: forget this and every closed tab leaks one
 
                 try { controller.close(); } catch { /* already closed by the client */ }
             }
