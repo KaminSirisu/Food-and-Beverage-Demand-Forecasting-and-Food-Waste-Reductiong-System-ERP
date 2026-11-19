@@ -26,3 +26,9 @@ export async function getNotificationsAfter(storeNo: number, after: bigint, limi
 export function unreadCount(storeNo: number): Promise<number> {
     return db.alert.count({ where: { storeNo, readAt: null } });
 }
+
+/** Newest alert id for the branch ("0" if none): the SSE stream starts after it. */
+export async function latestAlertId(storeNo: number): Promise<string> {
+    const last = await db.alert.findFirst({ where: { storeNo }, orderBy: { id: "desc" }, select: { id: true } });
+    return last ? last.id.toString() : "0";
+}

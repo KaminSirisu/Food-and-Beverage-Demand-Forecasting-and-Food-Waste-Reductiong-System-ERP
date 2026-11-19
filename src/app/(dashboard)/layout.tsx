@@ -4,21 +4,27 @@ import { getCurrentUser } from "@/lib/auth/dal";
 import { readFlash } from "@/lib/flash";
 import { FlashToast } from "./_components/FlashToast";
 import { getSyncStatus } from "@/lib/dashboard/queries";
+import { NotificationStreamProvider } from "@/components/notifications/NotificationStreamProvider";
+import { latestAlertId, unreadCount } from "@/lib/alerts/queries";
 
 export default async function DashboardLayout({ children }: LayoutProps<"/">) {
     const user = await getCurrentUser(); // G2 / NFR4: real auth check — proxy.ts is only optimistic
-    const [flash, sync] = await Promise.all([ readFlash(), getSyncStatus() ]);
+    const [flash, sync, unread, latestId] = await Promise.all([
+        readFlash(), getSyncStatus(), unreadCount(user.storeNo), latestAlertId(user.storeNo),
+    ]);
 
     return (
-        <div className="flex h-dvh">
-            <FlashToast flash={flash} name={user.name} />
-            <Sidebar user={user}/>
-            <div className="flex min-w-0 flex-1 flex-col">
-                <Header user={user} sync={sync} />
-                <main className="relative flex-1 overflow-y-auto bg-slate-50 p-8">
-                    {children}
-                </main>
+        <NotificationStreamProvider initialUnread={unread} latestId={latestId}>
+            <div className="flex h-dvh">
+                <FlashToast flash={flash} name={user.name} />
+                <Sidebar user={user}/>
+                <div className="flex min-w-0 flex-1 flex-col">
+                    <Header user={user} sync={sync} />
+                    <main className="relative flex-1 overflow-y-auto bg-slate-50 p-8">
+                        {children}
+                    </main>
+                </div>
             </div>
-        </div>
+        </NotificationStreamProvider>
     )
 }

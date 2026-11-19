@@ -11,7 +11,7 @@ export type NavItem = {
     label: string;
     href: string;
     icon: LucideIcon;
-    badge?: number;
+    badge?: "unread"; // live count from the notification stream (was a hard-coded number)
 }
 
 export type NavSection = {
@@ -32,7 +32,7 @@ export const NAV_SECTIONS: NavSection[] = [
     {
         title: "System",
         items: [
-            { label: "Notifications", href:"/notifications", icon: Bell, badge: 5 },
+            { label: "Notifications", href:"/notifications", icon: Bell, badge: "unread" },
         ],
     },
 ];

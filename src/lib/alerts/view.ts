@@ -48,3 +48,13 @@ export function mergeIncoming(list: NotificationDto[], incoming: NotificationDto
         .sort((a, b) => (BigInt(b.id) > BigInt(a.id) ? 1 : -1))
         .slice(0, MAX_KEPT);
 }
+
+// Optimistic read state kept by the client: ids read in this tab + "everything up to id N" (Mark all as read)
+export type ReadOverrides = { ids: ReadonlySet<string>; allUpTo: string | null };
+
+export function applyReadOverrides(list: NotificationDto[], o: ReadOverrides): NotificationDto[] {
+    const upTo = o.allUpTo === null ? null : BigInt(o.allUpTo);
+    return list.map((n) =>
+        n.read || o.ids.has(n.id) || (upTo !== null && BigInt(n.id) <= upTo) ? { ...n, read: true } : n,
+    );
+}
