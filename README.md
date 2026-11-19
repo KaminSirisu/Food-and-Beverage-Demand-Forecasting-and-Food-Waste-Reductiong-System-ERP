@@ -25,6 +25,7 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 | Page | Docs |
 |---|---|
 | Waste & Auto-Promotion Engine (`/promotions`) | [src/app/(dashboard)/promotions/README.md](src/app/(dashboard)/promotions/README.md) |
+| Notifications (`/notifications`) | [src/app/(dashboard)/notifications/README.md](src/app/(dashboard)/notifications/README.md) |
 
 ## Testing
 
