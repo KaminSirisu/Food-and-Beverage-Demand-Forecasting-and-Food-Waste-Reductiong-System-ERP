@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { getNotifications } from "@/lib/alerts/queries";
-import { NotificationList } from "../_components/NotificationList";
+import { NotificationList } from "./_components/NotificationList";
 
 export const metadata: Metadata = { title: "Notifications" };
 
