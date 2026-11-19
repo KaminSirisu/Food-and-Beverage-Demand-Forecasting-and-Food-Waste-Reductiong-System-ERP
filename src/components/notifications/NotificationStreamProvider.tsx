@@ -19,7 +19,7 @@ const Ctx = createContext<NotificationsCtx | null>(null);
 
 export function useNotifications(): NotificationsCtx {
     const ctx = useContext(Ctx);
-    if (!ctx) throw new Error("useNotifications must be used include <NotificationStreamProvider>");
+    if (!ctx) throw new Error("useNotifications must be used inside <NotificationStreamProvider>");
     return ctx;
 }
 
@@ -66,7 +66,7 @@ export function NotificationStreamProvider({ initialUnread, latestId, children }
     const readAll = useCallback((upToId: string) => {
         setOverrides((o) => ({ ...o, allUpTo: upToId }));
         setUnread(0);
-        void markAllRead();
+        void markAllRead(upToId);
     }, []);
 
     const value = useMemo(

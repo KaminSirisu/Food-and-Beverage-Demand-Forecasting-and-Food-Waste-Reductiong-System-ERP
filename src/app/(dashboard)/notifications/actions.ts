@@ -24,9 +24,12 @@ export async function markRead(input: unknown): Promise<ReadResult> {
     return { ok: true };
 }
 
-export async function markAllRead(): Promise<ReadResult> {
+export async function markAllRead(input: unknown): Promise<ReadResult> {
     const { storeNo } = await verifySession();
-    await db.alert.updateMany({ where: { storeNo, readAt: null }, data: { readAt: new Date() } });
+    const parsed = AlertId.safeParse(input); // newest id the manager could see
+    if (!parsed.success) return { ok: false, error: "Invalid alert." };
+    // lte: an alert that arrives after the click stays unread (the manager hasn't seen it)
+    await db.alert.updateMany({ where: { storeNo, readAt: null, id: { lte: BigInt(parsed.data) } }, data: { readAt: new Date() } });
     emitAlert(storeNo);
     return { ok: true };
 }
