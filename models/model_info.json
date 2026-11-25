@@ -7,6 +7,14 @@
     "2023-04-01",
     "2023-08-31"
   ],
+  "train_period": [
+    "2022-08-01",
+    "2023-03-31"
+  ],
+  "validation_period": [
+    "2023-03-01",
+    "2023-03-31"
+  ],
   "training": "fit Aug 2022 - Feb 2023, early stopping on Mar 2023, final model refit on Aug 2022 - Mar 2023",
   "libraries": {
     "lightgbm": "4.6.0",

@@ -113,6 +113,8 @@ def main():
                   'tomorrow': 'max(1, mean_full_7d)'}
     info = {'version': f'v{datetime.date.today():%Y.%m.%d}', 'created': datetime.datetime.now().isoformat(timespec='seconds'),
             'store': 801, 'decision_time': '13:30', 'test_period': [str(test_start.date()), str(raw_test['Date'].max().date())],
+            'train_period': [str(raw_train['Date'].min().date()), str(raw_train['Date'].max().date())],
+            'validation_period': [str(raw_train['Date'].max().replace(day=1).date()), str(raw_train['Date'].max().date())],
             'training': 'fit Aug 2022 - Feb 2023, early stopping on Mar 2023, final model refit on Aug 2022 - Mar 2023',
             'libraries': {'lightgbm': lgb.__version__, 'onnxmltools': onnxmltools.__version__,
                           'onnxruntime': onnxruntime.__version__, 'onnx': onnx.__version__, 'opset': 15},
@@ -125,9 +127,13 @@ def main():
     json.dump(info, open(os.path.join(a.out_dir, 'model_info.json'), 'w'), indent=2)
 
     def r6(x):
-        return None if x is None or (isinstance(x, float) and np.isnan(x)) else round(float(x), 6)
+        if x is None:
+            return None
+        x = float(x)                                    # numpy float32 is not a Python float: convert first
+        return None if np.isnan(x) else round(x, 6)     # NaN -> null (JSON has no NaN)
     cases = {'tolerance': TOLERANCE, 'note': 'inputs in feature_order; null = NaN (missing). '
-             'expected_output = LightGBM prediction (ratio). predicted_units = expected_output * level.'}
+             'expected_output = LightGBM prediction (ratio). predicted_units = expected_output * level. '
+             'date: rest_of_day = decision day D; tomorrow = target day D+1.'}
     for name in feats:
         rows = test_rows[name]
         pred = models[name].predict(rows[feats[name]])
