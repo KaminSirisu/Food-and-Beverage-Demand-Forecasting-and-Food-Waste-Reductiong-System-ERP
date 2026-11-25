@@ -54,6 +54,7 @@ export async function forecastForDay(storeNo: number, targetDate: string) {
         decisionTime: info.decisionTime,
         modelVersion: info.version,
         rows: all.flatMap((r) => (r.predictedQty === null ? [] : [{ ...r, predictedQty: r.predictedQty }])),
+        restOfDayRows: all.flatMap((r) => (r.restOfDay === null ? [] : [{ itemNo: r.itemNo, restOfDay: r.restOfDay }])), // units still to sell on the decision day D after 13:30
         notCovered: all.filter((r) => r.predictedQty === null).map((r) => r.itemNo), // not on sale or no history
     };
 }
