@@ -17,7 +17,7 @@ function encoders(): Encoders {
     return JSON.parse(readFileSync(path.join(MODELS_DIR, "encoders.json"), "utf8"));
 }
 /** Thai public holidays used in training (models/holidays.csv, first column = YYYY-MM-DD). */
-function holidays(): string[] {
+export function holidays(): string[] {
     return readFileSync(path.join(MODELS_DIR, "holidays.csv"), "utf8")
         .split(/\r?\n/)
         .map((line) => line.match(/^(\d{4}-\d{2}-\d{2})/)?.[1])
