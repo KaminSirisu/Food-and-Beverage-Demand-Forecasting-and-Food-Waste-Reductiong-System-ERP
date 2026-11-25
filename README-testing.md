@@ -19,8 +19,10 @@ its own rows. Days that have real ingested sales (`sales_line` for 801) are neve
 npm test
 ```
 
-Covers `src/lib/analytics/metrics.ts`: variance %, MAPE, RMSE, Good / Fair / Review bands, filling missing
-days, waste totals. Expected: **16 passed**. No database needed.
+Covers `src/lib/analytics/metrics.ts` (variance %, MAPE, RMSE, Good / Fair / Review bands, filling missing
+days, waste totals — 16 tests) and `src/lib/promotions/rules.ts` (waste risk by expiry and over-stock, promo price,
+auto / manual rates, POS status, KPI cards, dashboard risk rule — 19 tests). and `src/lib/alerts/` (title/body packing, notification list filter / merge / read state, Bangkok time
+format, SSE frames and resume cursor, risk → alert drafts, de-dupe window — 44 tests). Expected: **79 passed**. No database needed.
 
 ## 2. UI tests — Playwright
 
@@ -138,3 +140,50 @@ Values come from `WASTE_30_DAYS` in `prisma/seed-demo.ts`; they're relative to t
 | Date | Tester | Branch / commit | Result (all pass / failed IDs) |
 |---|---|---|---|
 | | | | |
+
+## 4. Manual test — Waste & Auto-Promotion Engine (`/promotions`)
+
+**Before you start:** data prepared (step 0), `npx prisma db push` done for `auto_promotion_enabled`,
+`npm run dev` running, logged in as a Store Manager of 801, mockup open next to the browser.
+The POS is simulated: nothing is sent outside the app.
+
+| ID | Steps | Expected |
+|---|---|---|
+| P1 | Click **Waste & Auto-Promotion Engine** in the sidebar | URL `/promotions`; item highlighted; title "Waste Mitigation & Automated Promotion Management" |
+| P2 | Look at the KPI cards | "SKUs at waste risk" = 2, "2 expire today" (ST068, ST058); Pending push 2 "ST058 · ST068"; Live 0 |
+| P3 | Look at the table | 8 rows max, 1-day items first (red shelf life), 2-day amber; ST068 15% → ฿11, ST058 15% → ฿30, others 0% "No promotion" |
+| P4 | Banner | "Promotion trigger by category: …" shows the rates from Branch Thresholds; link opens `/thresholds` |
+| P5 | **Push Discount to POS** on ST068 | Green toast; button becomes "Pushed ✓"; status "Live on POS"; Live card 1 "ST068 15%"; badge "Last push HH:mm" |
+| P6 | **Manual Override** on SB078 → 25 → Save rate | Rate 25% with blue "Manual" chip; promo price ฿10; status "Pending push"; Push button enabled |
+| P7 | Manual Override on SB078 → **Back to auto** | Rate back to 0% "Auto"; "No promotion" |
+| P8 | Manual Override → type 95 | Save disabled / input red (max 90) |
+| P9 | Turn the engine switch **off** | Text "Off · …"; ST058 rate 0% (not pushed yet); ST068 stays Live; manual overrides kept |
+| P10 | Turn it **on** again, reload | Switch stays on after reload (saved) |
+| P11 | Change Thai dessert discount on `/thresholds` to 25%, come back | ST058 now 25% (ST068 keeps its pushed 15%) |
+| P12 | Open the dashboard `/` | Auto-Promotions card lists the same SKUs and rates as this page |
+| P13 | Width 375 px | Table scrolls sideways inside its card; no page-wide horizontal scroll |
+
+To repeat the test from a clean state, delete today's rows: `promotion` where `store_no = 801` and `promo_date` = today
+(e.g. in Prisma Studio), or wait for the next day and re-run `npm run db:seed:demo`.
+
+## 5. Manual test — Notifications (`/notifications`)
+
+**Before you start:** data prepared (step 0), `npm run dev` running, logged in as a Store Manager of 801,
+mockup open next to the browser. Use a second browser tab for the live checks.
+
+| ID | Steps | Expected |
+|---|---|---|
+| N1 | Open any page | Sidebar and header bell show **5**; DevTools → Network shows **one** `stream` request, status pending |
+| N2 | Click **Notifications** in the sidebar | URL `/notifications`; 7 cards, newest first; top 5 grey with a blue dot; "Live" indicator green |
+| N3 | Compare the cards with the mockup | Chip colours and icons match (red Shortage, amber Waste, indigo Stale data, green Promotion, grey System); times in Bangkok time |
+| N4 | Click **Waste risk**, then **Promotion** | Only those types show; both chips dark (pressed) |
+| N5 | Clear the chips, tick **Unread only** | 5 cards; with a chip that has no unread alerts → "No notifications match these filters" |
+| N6 | **Open promotion →** on ST068 | Lands on `/promotions`; badges show **4**; back on `/notifications` that card is white |
+| N7 | **Mark all as read** | Both badges disappear; all cards white; button disabled; reload → still all read |
+| N8 | Tab B: push a discount on `/promotions` (not SB078) | Tab A: new "Promotion pushed" card at the top and badges +1 within a second, no reload |
+| N9 | Run the `/api/alerts/evaluate` curl (README) twice | First run adds Shortage / Waste cards and a toast (for SKUs without a demo alert); second run adds nothing |
+| N10 | Stop `npm run dev` for 10 s, start it again | Indicator shows "Connecting…", then "Live"; no duplicate cards |
+| N11 | Log out in tab B, then wait in tab A | Tab A stops reconnecting (401); the next click goes to `/login` |
+| N12 | Width 375 px | Chips wrap; cards readable; no page-wide horizontal scroll |
+
+To repeat from a clean state, run `npm run db:seed:demo` again: it replaces only the demo alerts (`action_url` ending in `#demo`).

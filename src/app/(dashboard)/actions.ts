@@ -9,6 +9,7 @@ import { ORDER_CUTOFF } from "@/lib/config";
 import { computeRow } from "@/lib/orders/formula";
 import { getOrderInputs } from "@/lib/orders/queries";
 import { isAfterCutoff, tomorrowDate } from "@/lib/time";
+import { evaluateAlerts } from "@/lib/alerts/engine";
 
 export async function clearFlash(): Promise<void> {
     await deleteFlash();
@@ -95,6 +96,9 @@ export async function confirmOrder(input: unknown): Promise<ConfirmResult> {
             },
         }),
     ]);
+
+    // SM5 / SM6: the new "Left now" counts can change today's risks -> re-check alerts (best effort: the order is already saved)
+    await evaluateAlerts(storeNo, now).catch((err) => console.error("evaluateAlerts failed", err));
 
     refresh(); // Next 16: re-render the page so "Confirmed at …" and the saved orders show
     return { ok: true, pendingAm };

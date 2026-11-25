@@ -3,6 +3,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { getOrderInputs, type OrderData } from "@/lib/orders/queries";
+import { getPromotions } from "@/lib/promotions/queries";
 import { addDays, todayDate } from "@/lib/time";
 import { riskSkus, sumValue, type RiskSku } from "./risk";
 
@@ -25,22 +26,17 @@ export async function getDashboard(storeNo: number, now = new Date()): Promise<D
     const today = todayDate(now);
     const weekStart = addDays(today, -6);
 
-    const [order, waste, promotions, threshold] = await Promise.all([
+    const [order, waste] = await Promise.all([
         getOrderInputs(storeNo, now),
         db.wasteRecord.groupBy({
             by: ["wasteDate"],
             where: { storeNo, wasteDate: { gte: weekStart, lte: today } },
             _sum: { value: true },
         }),
-        db.promotion.findMany({
-            where: { storeNo, promoDate: today },
-            select: { itemNo: true, discountPct: true, posStatus: true },
-        }),
-        db.branchThreshold.findFirst({
-            where: { storeNo, categoryCode: null },
-            select: { discountPct: true },
-        })
-    ])
+    ]);
+    // Same rows as the Waste & Auto-Promotion page (S7, SM9) — reuses the order inputs loaded above
+    const promotions = await getPromotions(storeNo, now, order);
+
     // Days with no WasteRecord still get a bar (value 0), so the chart always has 7
     const byDay = new Map(waste.map((w) => [w.wasteDate.getTime(), Number(w._sum.value ?? 0)]));
     const wasteLast7Days = Array.from({ length: 7 }, (_, i) => {
@@ -48,21 +44,23 @@ export async function getDashboard(storeNo: number, now = new Date()): Promise<D
         return { date: day.toISOString().slice(0, 10), value: byDay.get(day.getTime()) ?? 0};
     })
 
-    const risks = riskSkus(order.lines, order.wasteRiskThreshold);
+    // S7: per-category waste-risk %, same lookup the promotion rows used
+    const wasteRiskByCategory = new Map(promotions.triggers.map((t) => [t.code, t.wasteRiskPct]));
+    const risks = riskSkus(order.lines, (code) => wasteRiskByCategory.get(code) ?? order.wasteRiskThreshold);
 
-    // A promo already created today keeps its own discount and POS status
-    const promoByItem = new Map(promotions.map((p) => [p.itemNo, p]));
-    const defaultDiscount = Number(threshold?.discountPct ?? 20);
-    const promos = risks
-        .filter((r) => r.kind === "WASTE")
-        .map((r) => {
-            const saved = promoByItem.get(r.itemNo);
-            return {
-                ...r,
-                discountPct: saved ? Number(saved.discountPct) : defaultDiscount,
-                status: saved?.posStatus ?? "SUGGESTED",
-            }
-        })
+    // SM9: SKUs with a discount today. A row not saved yet is still a suggestion.
+    const promos = promotions.rows
+        .filter((r) => r.discountPct > 0 && r.status !== "NONE")
+        .map((r) => ({
+            itemNo: r.itemNo,
+            nameTh: r.nameTh,
+            kind: "WASTE" as const,
+            units: r.risk.units,
+            pct: r.risk.pct,
+            value: r.risk.units * r.price,
+            discountPct: r.discountPct,
+            status: r.saved ? r.status : "SUGGESTED",
+        }));
     return {
         order,
         wasteToday: wasteLast7Days.at(-1)?.value ?? 0,

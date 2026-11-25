@@ -1,10 +1,11 @@
 // Demo data until forecast (Mew) and ingestion (Auto) land. Run after `npm run db:seed`.
 // Idempotent: deletes only rows it created (tagged below), then inserts them again for *today*.
 // Numbers are taken from the dashboard mockup so the screen can be checked against it.
-import { ModelKind } from "@prisma/client";
+import { ModelKind, type AlertType } from "@prisma/client";
 import { db } from "../src/lib/db";
 import { STORE_NO } from "../src/lib/config";
 import { addDays, todayDate, tomorrowDate } from "../src/lib/time";
+import { joinMessage } from "../src/lib/alerts/message";
 
 const DEMO_VERSION = "demo-stub";
 
@@ -18,6 +19,19 @@ const DEMO = [
     { itemNo: "SC076", leftNow: 14, restOfDay: 8, tomorrow: 11.4 },
     { itemNo: "SCP1993", leftNow: 16, restOfDay: 6, tomorrow: 13.9 },
     { itemNo: "SB094", leftNow: 12, restOfDay: 9, tomorrow: 10.6 }, // not in mockup
+];
+
+// Notifications page (S10): the mockup's 7 alerts. minutesAgo keeps them in today's past whatever time you seed.
+// Oldest first, so autoincrement ids follow time order (the page sorts by id).
+const DEMO_ALERT_TAG = "#demo"; // on action_url: lets the seed delete only its own rows
+const DEMO_ALERTS: { minutesAgo: number; type: AlertType; itemNo: string | null; title: string; body: string; url: string; read: boolean }[] = [
+    { minutesAgo: 157, type: "PROMOTION", itemNo: "SB078", title: "Promotion pushed · SB078 ปังเนยสดน้ำตาล", body: "20% discount live on POS since 11:05.", url: "/promotions", read: true },
+    { minutesAgo: 110, type: "SYSTEM", itemNo: null, title: "Abnormal condition · Display chiller 2", body: "Waste logged as cold-chain loss 3 times today. Check chiller temperature.", url: "/thresholds", read: true },
+    { minutesAgo: 22, type: "PROMOTION", itemNo: "ST058", title: "Promotion opportunity · ST058 ตะโก้เผือก", body: "Auto-discount 15% ready to push to POS.", url: "/promotions", read: false },
+    { minutesAgo: 7, type: "STALE_DATA", itemNo: null, title: "POS feed delayed", body: "No POS data since 12:55. Alerts are using cached data.", url: "/", read: false },
+    { minutesAgo: 4, type: "WASTE_RISK", itemNo: "ST068", title: "Waste risk · ST068 ข้าวต้มมัด", body: "Projected surplus 11 units at 17:00 checkpoint (1-day shelf life).", url: "/promotions", read: false },
+    { minutesAgo: 2, type: "SHORTAGE_RISK", itemNo: "SC220", title: "Shortage risk · SC220 ชิฟฟ่อนมะพร้าวอ่อน", body: "Stock 6 is below your low-stock threshold (8).", url: "/", read: false },
+    { minutesAgo: 2, type: "SHORTAGE_RISK", itemNo: "SCP1993", title: "Shortage risk · SCP1993 เค้กมินิมอลมินิ", body: "Stock 4 vs forecast 14 before the 18:00 rush. Recommended: add 10 units to today's factory order.", url: "/", read: false },
 ];
 
 // ฿ waste per day, oldest → today. The last 7 match the dashboard mockup (Daily Waste vs Target chart);
@@ -64,6 +78,7 @@ async function main() {
         db.stockSnapshot.deleteMany({ where: { storeNo: STORE_NO, source: "ESTIMATED" } }),
         db.wasteRecord.deleteMany({ where: { storeNo: STORE_NO, source: "SIMULATED" } }),
         db.importBatch.deleteMany({ where: { source: "simulate" } }),
+        db.alert.deleteMany({ where: { storeNo: STORE_NO, actionUrl: { endsWith: DEMO_ALERT_TAG } } }),
     ])
     // 2. Demo models — active only if no real model of that kind is active (never override Mew's)
     const models: Record<ModelKind, string> = { REST_OF_DAY: "", TOMORROW: "" };
@@ -107,6 +122,22 @@ async function main() {
 
     // 7. Forecast vs. Actual history for the last 30 days (yesterday back), for /analytics
     const historyRows = await seedHistory(models.TOMORROW, today);
+
+    // 7b. Notifications (S10): createMany keeps array order → ids ascend with time
+    await db.alert.createMany({
+        data: DEMO_ALERTS.map((a) => {
+            const at = new Date(now.getTime() - a.minutesAgo * 60_000);
+            return {
+                storeNo: STORE_NO,
+                itemNo: a.itemNo,
+                type: a.type,
+                message: joinMessage(a.title, a.body),
+                actionUrl: a.url + DEMO_ALERT_TAG,
+                createdAt: at,
+                readAt: a.read ? at : null,
+            };
+        }),
+    });
 
     // 8. The Playwright test user (G2: STORE_MANAGER of branch 801 only)
     const e2e = await db.user.upsert({

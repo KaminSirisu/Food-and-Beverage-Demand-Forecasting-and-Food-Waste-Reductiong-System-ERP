@@ -302,6 +302,7 @@ model BranchThreshold {
   cheerUnit          ThresholdUnit? @map("cheer_unit")
   wasteRiskPct       Decimal?       @map("waste_risk_pct") @db.Decimal(5, 2) // S7
   discountPct        Decimal?       @map("discount_pct") @db.Decimal(5, 2) // SM9 auto-discount
+  autoPromotionEnabled Boolean?     @map("auto_promotion_enabled") // SM9 engine on/off, default row only — NULL = on
   updatedBy          String?        @map("updated_by") // app_user.id
   updatedAt          DateTime       @updatedAt @map("updated_at")
   branch             Branch         @relation(fields: [storeNo], references: [storeNo])

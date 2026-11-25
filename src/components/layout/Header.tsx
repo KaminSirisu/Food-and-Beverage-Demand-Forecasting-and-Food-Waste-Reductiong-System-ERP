@@ -3,6 +3,8 @@ import type { CurrentUser } from "@/lib/auth/dal";
 import { initials } from "@/lib/user-display";
 import type { SyncStatus } from "@/lib/dashboard/queries";
 import { HeaderStatus } from "./HeaderStatus";
+import Link from "next/link";
+import { UnreadBadge } from "@/components/notifications/UnreadBadge";
 
 export function Header({ user, sync }: { user: CurrentUser; sync: SyncStatus }) {
     return (
@@ -23,14 +25,14 @@ export function Header({ user, sync }: { user: CurrentUser; sync: SyncStatus }) 
                 >
                     <FileText size={20} aria-hidden />
                 </button>
-                <button
-                    type="button"
+                <Link
+                    href="/notifications"
                     aria-label="Notifications"
-                    className="relative grid size-10 place-items-center rounded-lg border border-slate-200 hover:bg-slate-50"    
+                    className="relative grid size-10 place-items-center rounded-lg border border-slate-200 hover:bg-slate-50"
                 >
                     <Bell size={20} aria-hidden />
-                    <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-red-500 text-[10px] font-semibold text-white">5</span>
-                </button>
+                    <UnreadBadge className="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white" />
+                </Link>
                 <span
                     title={user.name}
                     className="grid size-10 place-items-center rounded-full bg-indigo-500 text-sm font-semibold text-white"

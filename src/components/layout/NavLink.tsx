@@ -1,12 +1,12 @@
 "use client"
 // use client because usePathname is a hook, Everything else stays on the server and ship zero JS.
-
+import { UnreadBadge } from "@/components/notifications/UnreadBadge";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 type NavLinkProps = {
     href: string;
-    badge?: number;
+    badge?: "unread";
     children: React.ReactNode; // icon + label, rendered on the server
 }
 
@@ -25,11 +25,9 @@ export function NavLink({ href, badge, children }: NavLinkProps ) {
             }`}
         >
             {children}
-            {badge ? (
-                <span className="ml-auto grid size-5 place-items-center rounded-full bg-red-500 text-xs font-semibold text-white">
-                    {badge}
-                </span>
-            ): null}
+            {badge === "unread" ? (
+                <UnreadBadge className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-red-500 px-1 text-xs font-semibold text-white" />
+            ) : null}
         </Link>
     )
 }
