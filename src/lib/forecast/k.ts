@@ -60,7 +60,6 @@ export function simulate(days: Map<string, SimDay>, life: number, start: string,
         const tomorrow = addDay(D, 1);
         const isEval = D >= start;
         if (isEval) stock.push([0, orderNext]); // this morning's production arrives
-        const produced = isEval ? orderNext : 0;
         const selling = r.onSale;
         const demToT = selling ? r.soldToT : 0, demAft = selling ? r.soldAfterT : 0;
         let sold = 0, need = demToT; // morning sales until T, oldest stock first
