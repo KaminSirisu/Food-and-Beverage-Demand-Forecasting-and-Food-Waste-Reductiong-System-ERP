@@ -25,9 +25,9 @@ export const ALERT_TYPES = Object.keys(ALERT_META) as AlertType[];
 export const OPPORTUNITY_TITLE = "Opportunity sale";
 export const CHEER_TITLE = "Cheer sale";
 
-/** Follow-up button text (S10): the checkpoint alerts get their own action. */
-export function ctaFor(type: AlertType, title: string): string {
-    if (title.startsWith(OPPORTUNITY_TITLE)) return "Produce more";
+/** Follow-up button text (S10). null = no button: "produce more" is done by the manager in the kitchen, not in the app. */
+export function ctaFor(type: AlertType, title: string): string | null {
+    if (title.startsWith(OPPORTUNITY_TITLE)) return null;
     if (title.startsWith(CHEER_TITLE)) return "Cheer sale / push discount";
     return ALERT_META[type].cta;
 }

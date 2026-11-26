@@ -50,7 +50,7 @@ export function opportunityDrafts(
                 `Only ${stock} left at ${clock} and the forecast sells ~${expected} more today. ` +
                 `Produce ${produce} more at the branch` +
                 (base ? ` (${PRODUCE_MORE_PCT}% of this morning's ${base}).` : "."),
-            actionUrl: "/#produce-more",
+            actionUrl: "/notifications", // no button is shown for it (meta.ts ctaFor)
             dedupeByTitle: true,
         });
     }

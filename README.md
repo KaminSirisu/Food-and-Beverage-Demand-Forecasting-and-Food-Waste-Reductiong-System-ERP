@@ -48,7 +48,8 @@ Replays real 2023 D365 days as if they were today. Use a **Neon demo branch** so
 
 **Checkpoint alerts (SM5, SM6)** run once a day at the times set on Branch Thresholds & Checkpoints (editable):
 - **Opportunity Sale** (default 14:00): stock at/below the limit while the forecast still expects sales →
-  "Produce N more at the branch", N = 20% of this morning's stock. Listed in the dashboard's *Produce More* card.
+  "Produce N more at the branch", N = 20% of this morning's stock. Shown on the Notifications page only, with no
+  button: the manager acts on it in person.
 - **Cheer Sale** (default 18:00): last-day stock at/above the limit → cheer the sale or push the discount.
 A server timer (`src/instrumentation.ts`) calls `POST /api/alerts/checkpoints` every minute, and each Simulate/Live
 sync checks too, so they fire even when nobody has the page open. Restart `npm run dev` once to start the timer.
