@@ -18,7 +18,12 @@ export default async function DashboardPage() {
     const user = await getCurrentUser(); // G2: storeNo comes from the session, never the URL
     const data = await getDashboard(user.storeNo);
     const { order } = data;
-    const overTarget = data.wasteToday > DAILY_WASTE_TARGET;
+    // Manual 3.1.2 no. 1: waste is only known at close, so show what's logged so far + what tonight will add
+    const wasteTotal = data.wasteToday + data.wasteProjected;
+    const overTarget = wasteTotal > DAILY_WASTE_TARGET;
+    const wasteHint = data.wasteProjected > 0
+        ? `${baht(data.wasteProjected)} projected unsold at close${data.wasteToday > 0 ? ` + ${baht(data.wasteToday)} logged` : ""} · target ${baht(DAILY_WASTE_TARGET)}`
+        : `Nothing expected left at close · target ${baht(DAILY_WASTE_TARGET)}`;
 
     return (
         <div className="space-y-4">
@@ -31,9 +36,9 @@ export default async function DashboardPage() {
 
             <div className="grid gap-6 sm:grid-cols-2">
                 <KpiCard 
-                    label="Value of Waste (today)"
-                    value={baht(data.wasteToday)}
-                    hint={`${overTarget ? "Over" : "Within"} daily target ${baht(DAILY_WASTE_TARGET)}`}
+                    label="Value of Waste (today, projected)"
+                    value={baht(wasteTotal)}
+                    hint={wasteHint}
                     icon={<Trash2 className="size-5" aria-hidden />}
                     alert={overTarget}
                 />

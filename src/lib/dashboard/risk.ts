@@ -34,3 +34,11 @@ export function riskSkus(lines: OrderInputs[], wasteRiskFor: (categoryCode: stri
 export function sumValue(risks: RiskSku[], kind: RiskKind): number {
     return risks.filter((r) => r.kind === kind).reduce((sum, r) => sum + r.value, 0);
 }
+
+/** Manual 3.1.2 no. 1: ฿ of last-day stock expected to be left unsold at close tonight (same rule as the waste estimate). */
+export function projectedWasteTonight(lines: OrderInputs[]): number {
+    return lines.reduce((sum, line) => {
+        const risk = wasteRisk(computeRow(line));
+        return risk.reason === "EXPIRY" ? sum + risk.units * line.price : sum;
+    }, 0);
+}
