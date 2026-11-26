@@ -9,8 +9,14 @@ const DAY_MS = 86_400_000;
 function bangkokYmd(now: Date): string {
     return new Intl.DateTimeFormat("en-CA", { timeZone: TimeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 }
+// T1 demo: NEXT_PUBLIC_DEMO_TODAY=2023-05-01 makes the whole app treat that day as today.
+// Only the calendar day changes; the clock stays real, so the 13:30 cutoff and alert times still work.
+// NEXT_PUBLIC_ so the header (client) sees it too. Unset = the real Bangkok date.
+const DEMO_TODAY = process.env.NEXT_PUBLIC_DEMO_TODAY;
+const isDemo = !!DEMO_TODAY && /^\d{4}-\d{2}-\d{2}$/.test(DEMO_TODAY);
+
 export function todayDate(now = new Date()): Date {
-    return new Date(`${bangkokYmd(now)}T00:00:00Z`);
+    return new Date(`${isDemo ? DEMO_TODAY : bangkokYmd(now)}T00:00:00Z`);
 }
 export function addDays(date: Date, days: number): Date {
     return new Date(date.getTime() + days * DAY_MS);
@@ -37,9 +43,9 @@ export function minutesUntil(hhmm: string, now = new Date()): number {
 export function isAfterCutoff(hhmm: string, now = new Date()): boolean {
     return minutesUntil(hhmm, now) <= 0;
 }
-// Header: "Mon 26 Oct 2026 · 13:42"
 export function formatHeaderTime(now = new Date()): string {
-    const date = new Intl.DateTimeFormat("en-GB", { timeZone: TimeZone, weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(now);
+    // todayDate() is UTC midnight of the (demo or real) Bangkok day, so format it in UTC
+    const date = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", weekday: "short", day: "numeric", month: "short", year: "numeric" }).format(todayDate(now));
     return `${date.replace(",", "")} · ${formatClock(now)}`;
 }
 // "13:42"
