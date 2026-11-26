@@ -8,6 +8,7 @@ import type { OrderInputs } from "./formula";
 
 export type OrderData = {
     lines: OrderInputs[]; // only SKUs that have a tomorrow forecast
+    notOnSale: { itemNo: string; nameTh: string }[]; // in-scope SKUs with no forecast: the model saw no recent sales
     wasteRiskThreshold: number; // BranchThreshold.wasteRiskPct (branch default)
     confirmedAt: Date | null; // last time tomorrow's order was confirmed
     serverNow: number; // the instant used for today/tomorrow — the client cutoff clock starts here
@@ -88,5 +89,8 @@ export async function getOrderInputs(storeNo: number, now = new Date()): Promise
             savedOrdered: savedBySku.get(s.itemNo) ?? null,
         }));
 
-    return { lines, wasteRiskThreshold: Number(threshold?.wasteRiskPct ?? 10), confirmedAt, serverNow: now.getTime() };
+    // The model leaves a SKU out when it was not on sale recently (a run of zero-sale days) or has no history
+    const notOnSale = skus.filter((s) => !tomorrowQty.has(s.itemNo)).map((s) => ({ itemNo: s.itemNo, nameTh: s.nameTh }));
+
+    return { lines, notOnSale, wasteRiskThreshold: Number(threshold?.wasteRiskPct ?? 10), confirmedAt, serverNow: now.getTime() };
 }

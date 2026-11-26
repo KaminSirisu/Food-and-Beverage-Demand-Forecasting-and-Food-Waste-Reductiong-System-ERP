@@ -12,9 +12,9 @@ import { CutoffBadge, useMinutesLeft } from "./CutoffBadge";
 import { type Handlers, type Line } from "./order-view";
 import { TableView } from "./TableView";
 
-type Props = { lines: OrderInputs[]; cutoff: string; serverNow: number; confirmedAt: Date | null };
+type Props = { lines: OrderInputs[]; notOnSale?: { itemNo: string; nameTh: string }[]; cutoff: string; serverNow: number; confirmedAt: Date | null };
 
-export function FactoryOrderCard({ lines, cutoff, serverNow, confirmedAt }: Props) {
+export function FactoryOrderCard({ lines, notOnSale = [], cutoff, serverNow, confirmedAt }: Props) {
     const [mode, setMode] = useState<"compact" | "all">("compact");
     // SM4: Left now as typed by the manager (starts at the latest snapshot)
     const [leftNow, setLeftNow] = useState<Record<string, number>>(() =>
@@ -83,6 +83,13 @@ export function FactoryOrderCard({ lines, cutoff, serverNow, confirmedAt }: Prop
                 {confirmedAt && <span className="text-sm text-emerald-700">✓ Confirmed at {formatClock(confirmedAt)}</span>}
             </div>
             {mode === "compact" ? <CompactView rows={rows} totals={totals} {...handlers} /> : <TableView rows={rows} {...handlers} />}
+            {notOnSale.length > 0 && (
+                <p className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                    <span className="mr-1 rounded-full bg-slate-200 px-2 py-0.5 font-semibold text-slate-700">Not on sale</span>
+                    {notOnSale.map((s) => `${s.itemNo} · ${s.nameTh}`).join(", ")}: no recent sales, so the model gives no forecast
+                    and nothing is ordered. It comes back automatically once it sells again.
+                </p>
+            )}
             {reviewing && <ReviewPanel rows={rows} totals={totals} pending={pending} onBack={() => setReviewing(false)} onConfirm={submit} />}
             <footer className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
                 <p className="font-semibold text-slate-900">

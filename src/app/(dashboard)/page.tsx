@@ -58,6 +58,7 @@ export default async function DashboardPage() {
                     ) : (
                         <FactoryOrderCard
                             lines={order.lines}
+                            notOnSale={order.notOnSale}
                             cutoff={ORDER_CUTOFF}
                             serverNow={order.serverNow}
                             confirmedAt={order.confirmedAt}
