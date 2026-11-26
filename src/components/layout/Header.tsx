@@ -5,6 +5,7 @@ import type { SyncStatus } from "@/lib/dashboard/queries";
 import { HeaderStatus } from "./HeaderStatus";
 import Link from "next/link";
 import { UnreadBadge } from "@/components/notifications/UnreadBadge";
+import { SimulateButton } from "./SimulateButton";
 
 export function Header({ user, sync }: { user: CurrentUser; sync: SyncStatus }) {
     return (
@@ -12,19 +13,15 @@ export function Header({ user, sync }: { user: CurrentUser; sync: SyncStatus }) 
             <HeaderStatus {...sync} />
 
             <div className="ml-auto flex items-center gap-3">
-                <button
-                    type="button"
-                    className="rounded-lg border border-emerald-600 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"
-                >
-                    Simulate Data Ingestion
-                </button>
-                <button
-                    type="button"
-                    aria-label="Reports"
-                    className="grid size-10 place-items-center rounded-lg border border-slate-200 hover:bg-slate-50"    
+                <SimulateButton />
+                <Link
+                    href="/imports"
+                    aria-label="Data import log"
+                    title="Data import log"
+                    className="grid size-10 place-items-center rounded-lg border border-slate-200 hover:bg-slate-50"
                 >
                     <FileText size={20} aria-hidden />
-                </button>
+                </Link>
                 <Link
                     href="/notifications"
                     aria-label="Notifications"

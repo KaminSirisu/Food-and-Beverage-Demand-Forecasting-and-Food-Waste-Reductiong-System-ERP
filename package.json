@@ -19,6 +19,7 @@
     "@prisma/client": "^6.19.3",
     "exceljs": "^4.4.0",
     "jose": "^6.2.13",
+    "jszip": "3.10.2",
     "lucide-react": "^1.56.0",
     "next": "16.3.8",
     "onnxruntime-node": "1.23.2",
