@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { getOrderInputs, type OrderData } from "@/lib/orders/queries";
 import { getPromotions } from "@/lib/promotions/queries";
 import { addDays, todayDate } from "@/lib/time";
-import { riskSkus, sumValue, type RiskSku } from "./risk";
+import { projectedWasteTonight, riskSkus, sumValue, type RiskSku } from "./risk";
 import { getWaste, type WasteByCategory } from "@/lib/waste/queries";
 
 export type WasteDay = { date: string, value: number }; // date = "YYYY-MM-DD" (Bangkok day)
@@ -16,7 +16,8 @@ export type PromoCandidate = RiskSku & {
 
 export type DashboardData = {
     order: OrderData; // passed straight to FactoryOrderCard
-    wasteToday: number;
+    wasteToday: number; // ฿ already recorded today (D365 report / manual)
+    wasteProjected: number; // ฿ of last-day stock expected to be left unsold at close tonight
     lostSalesRisk: number;
     wasteLast7Days: WasteDay[]; // always 7 entries, oldest -> today
     wasteByCategory: WasteByCategory[]; // last 7 days, biggest first (estimated part)
@@ -61,6 +62,7 @@ export async function getDashboard(storeNo: number, now = new Date()): Promise<D
     return {
         order,
         wasteToday: wasteLast7Days.at(-1)?.value ?? 0,
+        wasteProjected: projectedWasteTonight(order.lines),
         lostSalesRisk: sumValue(risks, "SHORTAGE"),
         wasteLast7Days,
         wasteByCategory: waste.byCategory,
