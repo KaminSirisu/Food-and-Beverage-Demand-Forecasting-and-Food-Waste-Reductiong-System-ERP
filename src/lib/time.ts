@@ -12,11 +12,22 @@ function bangkokYmd(now: Date): string {
 // T1 demo: NEXT_PUBLIC_DEMO_TODAY=2023-05-01 makes the whole app treat that day as today.
 // Only the calendar day changes; the clock stays real, so the 13:30 cutoff and alert times still work.
 // NEXT_PUBLIC_ so the header (client) sees it too. Unset = the real Bangkok date.
+// Auto-advance: NEXT_PUBLIC_DEMO_ANCHOR=2026-11-26 is the real day that shows as DEMO_TODAY; each later real day
+// moves the demo one day forward (27 Nov → DEMO_TODAY + 1), so a replay runs for weeks without editing .env.
+// Unset = the demo stays on DEMO_TODAY.
+const YMD = /^\d{4}-\d{2}-\d{2}$/;
 const DEMO_TODAY = process.env.NEXT_PUBLIC_DEMO_TODAY;
-const isDemo = !!DEMO_TODAY && /^\d{4}-\d{2}-\d{2}$/.test(DEMO_TODAY);
+const DEMO_ANCHOR = process.env.NEXT_PUBLIC_DEMO_ANCHOR;
+const isDemo = !!DEMO_TODAY && YMD.test(DEMO_TODAY);
+const hasAnchor = isDemo && !!DEMO_ANCHOR && YMD.test(DEMO_ANCHOR);
 
 export function todayDate(now = new Date()): Date {
-    return new Date(`${isDemo ? DEMO_TODAY : bangkokYmd(now)}T00:00:00Z`);
+    const real = new Date(`${bangkokYmd(now)}T00:00:00Z`);
+    if (!isDemo) return real;
+    const demo = new Date(`${DEMO_TODAY}T00:00:00Z`);
+    if (!hasAnchor) return demo;
+    const daysSinceAnchor = Math.round((real.getTime() - new Date(`${DEMO_ANCHOR}T00:00:00Z`).getTime()) / DAY_MS);
+    return new Date(demo.getTime() + daysSinceAnchor * DAY_MS);
 }
 // T1 demo: the same clock time, moved onto the demo day. Use it for timestamps that "today" queries read back
 // (e.g. a stock count), so a count typed during demo day 2 May doesn't still count on 3 May. Real time when no demo.
