@@ -35,7 +35,9 @@ Replays real 2023 D365 days as if they were today. Use a **Neon demo branch** so
 2. Daily files for branch 801 go in `data/daily/Sales_Entry_YYYY-MM-DD.xlsx` (gitignored, split from the monthly exports).
 3. During the demo day, press **Simulate Data Ingestion** (header): it loads that day's sales **up to the current clock time**
    through the normal pipeline (import log, daily totals, alert check). Press it again later to add the newer sales.
-   Without a day file it copies the same weekday last week.
+   Without a day file it copies the same weekday last week. The **first sync of each day** also loads the rest of the
+   previous days (evening sales after Live was stopped, or days the demo was closed, up to 7 days back),
+   so you can stop in the evening and start again at 9:00.
    Turn on **Live** next to it to repeat that every minute, so each sale arrives at its real time and stock goes down on screen.
 4. Tomorrow's forecast runs by itself: after a D365 file upload (trigger, L7), and from Simulate once at the first sync
    of the day (provisional) and again after 13:30 (the official decision). By hand if needed:

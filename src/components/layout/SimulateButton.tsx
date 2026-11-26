@@ -2,7 +2,8 @@
 // Manual 3.1.1 no. 6: "Simulate Data Ingestion — demo only. Loads new sample sales data."
 // Click = load today's sales up to now once. "Live" = repeat every minute, so each sale arrives at its real time
 // (e.g. a 10:00 sale shows up at 10:00) and stock goes down on screen like a real POS feed.
-// The action also runs tomorrow's forecast when it is due (first sync, then after 13:30).
+// The action also runs tomorrow's forecast when it is due (first sync, then after 13:30), and the first sync of a day
+// loads the rest of the previous days (evening sales after Live was stopped, or days the demo was closed).
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { RefreshCw } from "lucide-react";
 import { sileo } from "sileo";
@@ -22,6 +23,12 @@ export function SimulateButton() {
         startTransition(async () => {
             try {
                 const r = await simulateIngestionAction();
+                if (r.ok && r.catchUp && r.catchUp.days.length > 0) {
+                    sileo.info({
+                        title: `Caught up ${r.catchUp.days.length} earlier day${r.catchUp.days.length > 1 ? "s" : ""}`,
+                        description: `${r.catchUp.lines} sales lines added for ${r.catchUp.days.join(", ")}`,
+                    });
+                }
                 if (!r.ok) {
                     sileo.error({ title: "Simulation failed", description: r.error });
                 } else if (r.status === "NO_NEW_DATA") {
