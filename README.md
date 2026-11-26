@@ -40,7 +40,9 @@ Replays real 2023 D365 days as if they were today. Use a **Neon demo branch** so
 4. Tomorrow's forecast runs by itself: after a D365 file upload (trigger, L7), and from Simulate once at the first sync
    of the day (provisional) and again after 13:30 (the official decision). By hand if needed:
    `npx tsx --env-file=.env src/lib/forecast/run-forecast.ts --date <tomorrow> --neon`
-5. Next day: change `NEXT_PUBLIC_DEMO_TODAY` (the dev server reloads `.env`).
+5. Next day: change `NEXT_PUBLIC_DEMO_TODAY` (the dev server reloads `.env`), **or** set `NEXT_PUBLIC_DEMO_ANCHOR` to the
+   real day that shows as the demo day: from then on the demo moves one day forward each real day
+   (anchor 2026-11-26 + demo 2023-05-05 → 27 Nov shows 6 May). Keep the dashboard open with **Live** on.
 
 Stock and waste have no D365 feed yet (open decision), so they are **estimated** (`src/lib/orders/estimate.ts`):
 stock = delivered (confirmed order, else the forecast) − sold so far; waste = 1-day items left unsold at close.
