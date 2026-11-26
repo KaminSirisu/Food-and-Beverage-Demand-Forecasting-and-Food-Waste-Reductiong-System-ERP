@@ -4,6 +4,7 @@
 // Source, in order:
 //   1. data/daily/Sales_Entry_<today>.xlsx — the real D365 day (local demo files, split from the monthly exports)
 //   2. otherwise the same weekday last week from the database, re-dated to today (transaction no. + offset)
+// The first sync of a day also catches up the previous days (catchUpPreviousDays).
 // Tomorrow's forecast runs from the same trigger as the D365 upload, only when due (forecastIfDue below).
 import "server-only";
 import { existsSync } from "node:fs";
@@ -95,36 +96,80 @@ async function workbookFirst(buf: Buffer): Promise<Buffer> {
     return out.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
 
-export async function simulateIngestion(storeNo: number, now = new Date()): Promise<SimulateResult> {
-    const today = todayDate(now);
-    const day = today.toISOString().slice(0, 10);
-    const upTo = bangkokClock(now);
+/** Lines of `day` up to `upTo` that are valid and not loaded yet (natural key). */
+async function missingLines(storeNo: number, day: Date, upTo: string, allowFallback: boolean) {
+    const ymd = day.toISOString().slice(0, 10);
+    const file = path.join(process.cwd(), "data", "daily", `Sales_Entry_${ymd}.xlsx`);
+    const source: "d365-file" | "last-week" | null = existsSync(file) ? "d365-file" : allowFallback ? "last-week" : null;
+    if (!source) return { source, all: 0, rows: [] as Row[] };
+    const all = source === "d365-file" ? await fromDayFile(file, storeNo, upTo) : await fromLastWeek(storeNo, day, upTo);
 
-    const file = path.join(process.cwd(), "data", "daily", `Sales_Entry_${day}.xlsx`);
-    const source = existsSync(file) ? "d365-file" : "last-week";
-    const all = source === "d365-file" ? await fromDayFile(file, storeNo, upTo) : await fromLastWeek(storeNo, today, upTo);
-
-    // Send only lines not loaded yet (natural key), so each click is a small "since last sync" file
     const existing = await db.salesLine.findMany({
-        where: { storeNo, saleDate: today },
+        where: { storeNo, saleDate: day },
         select: { posTerminalNo: true, transactionNo: true, lineNo: true },
     });
     const loadedKeys = new Set(existing.map((l) => `${l.posTerminalNo}|${l.transactionNo}|${l.lineNo}`));
     // Invalid rows (e.g. fractional quantity) are left out: they would be re-sent and rejected on every click.
     // Validation itself is shown by the real Power Automate files in the import log.
     const rows = all.filter((r) => SalesEntryRow.safeParse(r).success && !loadedKeys.has(`${Number(r["POS Terminal No_"])}|${Number(r["Transaction No_"])}|${Number(r["Line No_"])}`));
-    if (rows.length === 0) return { ok: true, status: "NO_NEW_DATA", day, upTo, source: all.length ? source : null };
+    return { source, all: all.length, rows };
+}
 
-    // Same name pattern as an intraday D365 export (batch.ts): Sales_Entry_YYYY-MM-DD_HHMM.xlsx
+/** Builds the file and loads it through the ingest pipeline (no forecast). Returns lines loaded, or an error. */
+async function loadRows(rows: Row[], fileName: string): Promise<{ ok: true; loaded: number; rejected: number; status: "LOADED" | "LOADED_WITH_ERRORS" } | { ok: false; error: string } | null> {
     const body = await toXlsx(rows);
-    const fileName = `Sales_Entry_${day}_${upTo.slice(0, 2)}${upTo.slice(3, 5)}.xlsx`;
     const { batch, duplicate } = await openBatch(fileName, sha256(body), "simulate");
-    if (duplicate) return { ok: true, status: "NO_NEW_DATA", day, upTo, source };
-
+    if (duplicate) return null;
     const result: LoadResult = await loadSalesEntry(batch.id, Readable.from(body), { forecast: false });
     if (result.status === "FAILED") return { ok: false, error: result.message ?? "Load failed." };
-    if (result.rows.loaded === 0) return { ok: true, status: "NO_NEW_DATA", day, upTo, source };
-    return { ok: true, status: result.status, day, upTo, loaded: result.rows.loaded, rejected: result.rows.rejected, source };
+    return { ok: true, loaded: result.rows.loaded, rejected: result.rows.rejected, status: result.status };
+}
+
+const CATCH_UP_DAYS = 7;
+
+export type CatchUp = { days: string[]; lines: number };
+
+/**
+ * First sync of a day only (today has no sales yet): load the rest of the previous days from data/daily, e.g. the
+ * evening sales after Live was stopped, or a whole day the demo was closed (up to 7 days back). For a day whose
+ * next-day forecast was never made, run the trigger, oldest day first, so stock and orders have a baseline.
+ */
+export async function catchUpPreviousDays(storeNo: number, now = new Date()): Promise<CatchUp> {
+    const today = todayDate(now);
+    if ((await db.salesLine.count({ where: { storeNo, saleDate: today } })) > 0) return { days: [], lines: 0 };
+
+    const out: CatchUp = { days: [], lines: 0 };
+    for (let back = CATCH_UP_DAYS; back >= 1; back--) {
+        const day = addDays(today, -back);
+        const { rows } = await missingLines(storeNo, day, "23:59:59", false);
+        if (rows.length === 0) continue;
+        const ymd = day.toISOString().slice(0, 10);
+        const r = await loadRows(rows, `Sales_Entry_${ymd}_2359.xlsx`); // the whole day, like an end-of-day export
+        if (!r || !r.ok || r.loaded === 0) continue;
+        out.days.push(ymd);
+        out.lines += r.loaded;
+        const nextForecast = await db.forecast.count({
+            where: { storeNo, targetDate: addDays(day, 1), modelVersion: { kind: "TOMORROW", isActive: true } },
+        });
+        if (nextForecast === 0) await runForecastAfterLoad(ymd, storeNo).catch((e) => console.error("catch-up forecast failed", e));
+    }
+    return out;
+}
+
+export async function simulateIngestion(storeNo: number, now = new Date()): Promise<SimulateResult & { catchUp?: CatchUp }> {
+    const today = todayDate(now);
+    const day = today.toISOString().slice(0, 10);
+    const upTo = bangkokClock(now);
+
+    const catchUp = await catchUpPreviousDays(storeNo, now);
+    const { source, all, rows } = await missingLines(storeNo, today, upTo, true);
+    if (rows.length === 0) return { ok: true, status: "NO_NEW_DATA", day, upTo, source: all ? source : null, catchUp };
+
+    // Same name pattern as an intraday D365 export (batch.ts): Sales_Entry_YYYY-MM-DD_HHMM.xlsx
+    const r = await loadRows(rows, `Sales_Entry_${day}_${upTo.slice(0, 2)}${upTo.slice(3, 5)}.xlsx`);
+    if (r === null || (r.ok && r.loaded === 0)) return { ok: true, status: "NO_NEW_DATA", day, upTo, source: source!, catchUp };
+    if (!r.ok) return { ok: false, error: r.error };
+    return { ok: true, status: r.status, day, upTo, loaded: r.loaded, rejected: r.rejected, source: source!, catchUp };
 }
 
 const DECISION_TIME = "13:30"; // the model decides tomorrow at 13:30 (forecast.ts)

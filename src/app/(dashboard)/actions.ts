@@ -10,7 +10,7 @@ import { computeRow } from "@/lib/orders/formula";
 import { getOrderInputs } from "@/lib/orders/queries";
 import { appNow, isAfterCutoff, tomorrowDate } from "@/lib/time";
 import { evaluateAlerts } from "@/lib/alerts/engine";
-import { forecastIfDue, simulateIngestion, type SimForecast, type SimulateResult } from "@/lib/simulate/ingest";
+import { forecastIfDue, simulateIngestion, type CatchUp, type SimForecast, type SimulateResult } from "@/lib/simulate/ingest";
 
 export async function clearFlash(): Promise<void> {
     await deleteFlash();
@@ -105,10 +105,10 @@ export async function confirmOrder(input: unknown): Promise<ConfirmResult> {
     return { ok: true, pendingAm };
 }
 // Manual 3.1.1 no. 6 (S1, demo only): load today's sales so far, run the forecast when due (L7), re-check alerts (S7).
-export async function simulateIngestionAction(): Promise<SimulateResult & { forecast?: SimForecast }> {
+export async function simulateIngestionAction(): Promise<SimulateResult & { forecast?: SimForecast; catchUp?: CatchUp }> {
     const { storeNo } = await verifySession(); // G2: branch from the session
     const now = new Date();
-    const result = await simulateIngestion(storeNo, now).catch((err: Error): SimulateResult => {
+    const result = await simulateIngestion(storeNo, now).catch((err: Error): SimulateResult & { catchUp?: CatchUp } => {
         console.error("simulateIngestion failed", err);
         return { ok: false, error: "Simulation failed. Check the server log." };
     });
