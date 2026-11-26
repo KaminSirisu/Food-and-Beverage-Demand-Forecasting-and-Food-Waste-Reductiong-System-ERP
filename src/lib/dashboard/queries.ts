@@ -7,6 +7,8 @@ import { getPromotions } from "@/lib/promotions/queries";
 import { addDays, todayDate } from "@/lib/time";
 import { projectedWasteTonight, riskSkus, sumValue, type RiskSku } from "./risk";
 import { getWaste, type WasteByCategory } from "@/lib/waste/queries";
+import { OPPORTUNITY_TITLE } from "@/lib/alerts/meta";
+import { splitMessage } from "@/lib/alerts/message";
 
 export type WasteDay = { date: string, value: number }; // date = "YYYY-MM-DD" (Bangkok day)
 export type PromoCandidate = RiskSku & {
@@ -23,15 +25,25 @@ export type DashboardData = {
     wasteByCategory: WasteByCategory[]; // last 7 days, biggest first (estimated part)
     topRisk: RiskSku[];
     promos: PromoCandidate[];
+    produce: ProduceTask[]; // SM5: today's Opportunity Sale alerts → produce more at the branch
 }
+
+export type ProduceTask = { itemNo: string; title: string; body: string; at: number };
 
 export async function getDashboard(storeNo: number, now = new Date()): Promise<DashboardData> {
     const today = todayDate(now);
     const weekStart = addDays(today, -6);
 
-    const [order, waste] = await Promise.all([
+    // Alerts carry real timestamps, so "today" here is the real Bangkok day
+    const realMidnight = new Date(`${new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(now)}T00:00:00+07:00`);
+    const [order, waste, opportunities] = await Promise.all([
         getOrderInputs(storeNo, now),
         getWaste(storeNo, weekStart, today),
+        db.alert.findMany({
+            where: { storeNo, type: "SHORTAGE_RISK", createdAt: { gte: realMidnight }, message: { startsWith: OPPORTUNITY_TITLE } },
+            orderBy: { createdAt: "desc" },
+            select: { itemNo: true, message: true, createdAt: true },
+        }),
     ]);
     // Same rows as the Waste & Auto-Promotion page (S7, SM9) — reuses the order inputs loaded above
     const promotions = await getPromotions(storeNo, now, order);
@@ -68,6 +80,7 @@ export async function getDashboard(storeNo: number, now = new Date()): Promise<D
         wasteByCategory: waste.byCategory,
         topRisk: risks.slice(0, 5),
         promos,
+        produce: opportunities.map((a) => ({ itemNo: a.itemNo ?? "", ...splitMessage(a.message, OPPORTUNITY_TITLE), at: a.createdAt.getTime() })),
     };
 }
 

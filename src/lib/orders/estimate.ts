@@ -43,28 +43,39 @@ async function soldByDay(storeNo: number, from: Date, to: Date): Promise<Map<str
     return new Map(rows.map((r) => [k(r.itemNo, r.saleDate), r.qtySold - r.qtyReturned]));
 }
 
-/** Estimated stock on the shelf right now, per SKU. SKUs with no delivery info are left out (shown as 0 / counted). */
-export async function estimateStockToday(
-    storeNo: number,
-    skus: { itemNo: string; shelfLifeDays: number }[],
-    today: Date,
-): Promise<Map<string, number>> {
+type SkuShelf = { itemNo: string; shelfLifeDays: number };
+
+/** Per SKU: opening stock (delivered today + usable carry) and stock now (opening − sold so far). */
+async function stockToday(storeNo: number, skus: SkuShelf[], today: Date): Promise<Map<string, { opening: number; now: number }>> {
     const yesterday = addDays(today, -1);
     const [delivered, sold] = await Promise.all([
         deliveredByDay(storeNo, yesterday, today),
         soldByDay(storeNo, yesterday, today),
     ]);
-    const out = new Map<string, number>();
+    const out = new Map<string, { opening: number; now: number }>();
     for (const s of skus) {
         const inToday = delivered.get(k(s.itemNo, today));
-        if (inToday === undefined) continue;
+        if (inToday === undefined) continue; // no delivery info → unknown
         // Multi-day items keep yesterday's leftover; 1-day items expired last night
         const carry = s.shelfLifeDays > 1
             ? Math.max(0, (delivered.get(k(s.itemNo, yesterday)) ?? 0) - (sold.get(k(s.itemNo, yesterday)) ?? 0))
             : 0;
-        out.set(s.itemNo, Math.max(0, inToday + carry - (sold.get(k(s.itemNo, today)) ?? 0)));
+        const opening = inToday + carry;
+        out.set(s.itemNo, { opening, now: Math.max(0, opening - (sold.get(k(s.itemNo, today)) ?? 0)) });
     }
     return out;
+}
+
+/** Estimated stock on the shelf right now, per SKU. SKUs with no delivery info are left out (shown as 0 / counted). */
+export async function estimateStockToday(storeNo: number, skus: SkuShelf[], today: Date): Promise<Map<string, number>> {
+    const parts = await stockToday(storeNo, skus, today);
+    return new Map([...parts].map(([itemNo, p]) => [itemNo, p.now]));
+}
+
+/** Stock at opening this morning (delivered + carry), per SKU — the base for "produce 20% more" (SM5). */
+export async function openingStockToday(storeNo: number, skus: SkuShelf[], today: Date): Promise<Map<string, number>> {
+    const parts = await stockToday(storeNo, skus, today);
+    return new Map([...parts].map(([itemNo, p]) => [itemNo, p.opening]));
 }
 
 export type WasteEstimate = { date: string; itemNo: string; categoryCode: string; qty: number; value: number };

@@ -9,7 +9,7 @@ import { ORDER_CUTOFF } from "@/lib/config";
 import { computeRow } from "@/lib/orders/formula";
 import { getOrderInputs } from "@/lib/orders/queries";
 import { appNow, isAfterCutoff, tomorrowDate } from "@/lib/time";
-import { evaluateAlerts } from "@/lib/alerts/engine";
+import { evaluateAlerts, runDueCheckpoints } from "@/lib/alerts/engine";
 import { forecastIfDue, simulateIngestion, type CatchUp, type SimForecast, type SimulateResult } from "@/lib/simulate/ingest";
 
 export async function clearFlash(): Promise<void> {
@@ -124,6 +124,8 @@ export async function simulateIngestionAction(): Promise<SimulateResult & { fore
         : { ran: false };
     // re-check even with no new lines: forecasts or counts may have changed since the last check
     await evaluateAlerts(storeNo, now).catch((err) => console.error("evaluateAlerts failed", err));
+    // SM5 / SM6: a checkpoint that is due runs now, with the stock this sync just updated
+    await runDueCheckpoints(storeNo, now).catch((err) => console.error("runDueCheckpoints failed", err));
     refresh(); // header sync pill, KPIs and the order card read the new sales
     return { ...result, forecast };
 }

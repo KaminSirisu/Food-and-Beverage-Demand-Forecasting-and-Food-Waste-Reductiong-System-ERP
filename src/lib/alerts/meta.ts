@@ -21,3 +21,13 @@ export const ALERT_META: Record<AlertType, AlertMeta> = {
 
 // Filter chips, in the mockup's order
 export const ALERT_TYPES = Object.keys(ALERT_META) as AlertType[];
+// SM5 / SM6 checkpoint alerts reuse the Shortage / Waste risk types; their title says which one it is
+export const OPPORTUNITY_TITLE = "Opportunity sale";
+export const CHEER_TITLE = "Cheer sale";
+
+/** Follow-up button text (S10): the checkpoint alerts get their own action. */
+export function ctaFor(type: AlertType, title: string): string {
+    if (title.startsWith(OPPORTUNITY_TITLE)) return "Produce more";
+    if (title.startsWith(CHEER_TITLE)) return "Cheer sale / push discount";
+    return ALERT_META[type].cta;
+}

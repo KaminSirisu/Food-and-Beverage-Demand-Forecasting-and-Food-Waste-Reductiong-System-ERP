@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { AlertType } from "@prisma/client";
 import { Database, Tag, Trash, TriangleAlert, Zap, type LucideIcon } from "lucide-react";
-import { ALERT_META, type AlertTone } from "@/lib/alerts/meta";
+import { ALERT_META, ctaFor, type AlertTone } from "@/lib/alerts/meta";
 import { formatAlertTime, type NotificationDto } from "@/lib/alerts/view";
 
 const ICONS: Record<AlertType, LucideIcon> = {
@@ -54,7 +54,7 @@ export function NotificationCard({ n, serverNow, onRead }: Props) {
                     onClick={() => { if (!n.read) onRead(n.id); }}
                     className="mt-3 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
                 >
-                    {meta.cta} <span aria-hidden>→</span>
+                    {ctaFor(n.type, n.title)} <span aria-hidden>→</span>
                 </Link>
             </div>
 

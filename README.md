@@ -46,6 +46,13 @@ Replays real 2023 D365 days as if they were today. Use a **Neon demo branch** so
    real day that shows as the demo day: from then on the demo moves one day forward each real day
    (anchor 2026-11-26 + demo 2023-05-05 → 27 Nov shows 6 May). Keep the dashboard open with **Live** on.
 
+**Checkpoint alerts (SM5, SM6)** run once a day at the times set on Branch Thresholds & Checkpoints (editable):
+- **Opportunity Sale** (default 14:00): stock at/below the limit while the forecast still expects sales →
+  "Produce N more at the branch", N = 20% of this morning's stock. Listed in the dashboard's *Produce More* card.
+- **Cheer Sale** (default 18:00): last-day stock at/above the limit → cheer the sale or push the discount.
+A server timer (`src/instrumentation.ts`) calls `POST /api/alerts/checkpoints` every minute, and each Simulate/Live
+sync checks too, so they fire even when nobody has the page open. Restart `npm run dev` once to start the timer.
+
 Stock and waste have no D365 feed yet (open decision), so they are **estimated** (`src/lib/orders/estimate.ts`):
 stock = delivered (confirmed order, else the forecast) − sold so far; waste = 1-day items left unsold at close.
 A manager's "Left now" count always wins. The Report icon opens the **Data Import Log** (`/imports`).
