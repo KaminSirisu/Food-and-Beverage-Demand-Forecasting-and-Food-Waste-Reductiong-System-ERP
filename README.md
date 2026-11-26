@@ -27,6 +27,23 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 | Waste & Auto-Promotion Engine (`/promotions`) | [src/app/(dashboard)/promotions/README.md](src/app/(dashboard)/promotions/README.md) |
 | Notifications (`/notifications`) | [src/app/(dashboard)/notifications/README.md](src/app/(dashboard)/notifications/README.md) |
 
+## Demo mode (T1)
+
+Replays real 2023 D365 days as if they were today. Use a **Neon demo branch** so the shared database keeps its full history.
+
+1. `.env`: point `DATABASE_URL` / `DIRECT_URL` at the demo branch and set `NEXT_PUBLIC_DEMO_TODAY="2023-05-03"`. Restart `npm run dev`.
+2. Daily files for branch 801 go in `data/daily/Sales_Entry_YYYY-MM-DD.xlsx` (gitignored, split from the monthly exports).
+3. During the demo day, press **Simulate Data Ingestion** (header): it loads that day's sales **up to the current clock time**
+   through the normal pipeline (import log, daily totals, alert check). Press it again later to add the newer sales.
+   Without a day file it copies the same weekday last week.
+4. Run the forecast by hand (the trigger stays manual for now):
+   `npx tsx --env-file=.env src/lib/forecast/run-forecast.ts --date <tomorrow> --neon`
+5. Next day: change `NEXT_PUBLIC_DEMO_TODAY` (the dev server reloads `.env`).
+
+Stock and waste have no D365 feed yet (open decision), so they are **estimated** (`src/lib/orders/estimate.ts`):
+stock = delivered (confirmed order, else the forecast) − sold so far; waste = 1-day items left unsold at close.
+A manager's "Left now" count always wins. The Report icon opens the **Data Import Log** (`/imports`).
+
 ## Testing
 
 ```bash
