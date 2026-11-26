@@ -11,6 +11,7 @@ import { OrderEmptyState } from "./_components/factory-order/OrderEmptyState";
 import { WasteChart } from "./_components/WasteChart";
 import { TopRiskTable } from "./_components/TopRiskTable";
 import { WasteBreakdownCard } from "./_components/WasteBreakdownCard";
+import { ProduceMoreCard } from "./_components/ProduceMoreCard";
 
 export const metadata: Metadata = { title: "Dashboard & Pre-Rush Alerts" };
 
@@ -66,6 +67,7 @@ export default async function DashboardPage() {
                     )}
                 </div>
                 <div className="space-y-6 xl:col-span-2">
+                    <ProduceMoreCard tasks={data.produce} />
                     <AutoPromotionsCard promos={data.promos} />
                     <WasteBreakdownCard items={data.wasteByCategory} />
                 </div>

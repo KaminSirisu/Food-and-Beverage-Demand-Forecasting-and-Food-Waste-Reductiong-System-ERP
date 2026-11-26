@@ -16,7 +16,7 @@ export async function createAlert(
         // itemNo: null -> Prisma writes IS NULL, so branch-level alerts de-dupe too
         where: { storeNo, type: draft.type, itemNo: draft.itemNo, createdAt: {
             gte: dedupeSince(draft.type, now)
-        }},
+        }, ...(draft.dedupeByTitle ? { message: { startsWith: draft.title } } : {}) },
         select: { id: true },
     })
     if (existing) return null;

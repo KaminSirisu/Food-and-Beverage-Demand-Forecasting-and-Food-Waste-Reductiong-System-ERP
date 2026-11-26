@@ -12,6 +12,7 @@ export type AlertDraft = {
     title: string;
     body: string;
     actionUrl: string;
+    dedupeByTitle?: boolean; // checkpoint alerts: de-dupe on their own title, so an earlier Shortage risk for the item doesn't hide them
 }
 
 export function alertsFromRisks(risks: RiskSku[]): AlertDraft[] {
