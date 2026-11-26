@@ -29,6 +29,7 @@ export function NotificationCard({ n, serverNow, onRead }: Props) {
     const meta = ALERT_META[n.type];
     const tone = TONE[meta.tone];
     const Icon = ICONS[n.type];
+    const cta = ctaFor(n.type, n.title);
 
     return (
         <li className={`flex gap-4 px-6 py-5 ${n.read ? "bg-white" : "bg-slate-50"}`}>
@@ -48,14 +49,16 @@ export function NotificationCard({ n, serverNow, onRead }: Props) {
                     )}
                 </div>
                 <p className="mt-1 text-sm text-slate-500">{n.body}</p>
-                {/* S10: the follow-up action. Opening it counts as reading the alert. */}
-                <Link
-                    href={n.actionUrl}
-                    onClick={() => { if (!n.read) onRead(n.id); }}
-                    className="mt-3 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
-                >
-                    {ctaFor(n.type, n.title)} <span aria-hidden>→</span>
-                </Link>
+                {/* S10: the follow-up action. Opening it counts as reading the alert. "Produce more" has none (manager acts in person). */}
+                {cta && (
+                    <Link
+                        href={n.actionUrl}
+                        onClick={() => { if (!n.read) onRead(n.id); }}
+                        className="mt-3 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
+                    >
+                        {cta} <span aria-hidden>→</span>
+                    </Link>
+                )}
             </div>
 
             <time dateTime={new Date(n.createdAt).toISOString()} className="shrink-0 text-sm text-slate-500">
