@@ -18,6 +18,13 @@ const isDemo = !!DEMO_TODAY && /^\d{4}-\d{2}-\d{2}$/.test(DEMO_TODAY);
 export function todayDate(now = new Date()): Date {
     return new Date(`${isDemo ? DEMO_TODAY : bangkokYmd(now)}T00:00:00Z`);
 }
+// T1 demo: the same clock time, moved onto the demo day. Use it for timestamps that "today" queries read back
+// (e.g. a stock count), so a count typed during demo day 2 May doesn't still count on 3 May. Real time when no demo.
+export function appNow(now = new Date()): Date {
+    if (!isDemo) return now;
+    const realDay = new Date(`${bangkokYmd(now)}T00:00:00Z`);
+    return new Date(now.getTime() + (todayDate(now).getTime() - realDay.getTime()));
+}
 export function addDays(date: Date, days: number): Date {
     return new Date(date.getTime() + days * DAY_MS);
 }

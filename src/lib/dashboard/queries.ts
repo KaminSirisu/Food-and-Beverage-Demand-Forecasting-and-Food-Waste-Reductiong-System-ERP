@@ -6,6 +6,7 @@ import { getOrderInputs, type OrderData } from "@/lib/orders/queries";
 import { getPromotions } from "@/lib/promotions/queries";
 import { addDays, todayDate } from "@/lib/time";
 import { riskSkus, sumValue, type RiskSku } from "./risk";
+import { getWaste, type WasteByCategory } from "@/lib/waste/queries";
 
 export type WasteDay = { date: string, value: number }; // date = "YYYY-MM-DD" (Bangkok day)
 export type PromoCandidate = RiskSku & {
@@ -18,6 +19,7 @@ export type DashboardData = {
     wasteToday: number;
     lostSalesRisk: number;
     wasteLast7Days: WasteDay[]; // always 7 entries, oldest -> today
+    wasteByCategory: WasteByCategory[]; // last 7 days, biggest first (estimated part)
     topRisk: RiskSku[];
     promos: PromoCandidate[];
 }
@@ -28,21 +30,16 @@ export async function getDashboard(storeNo: number, now = new Date()): Promise<D
 
     const [order, waste] = await Promise.all([
         getOrderInputs(storeNo, now),
-        db.wasteRecord.groupBy({
-            by: ["wasteDate"],
-            where: { storeNo, wasteDate: { gte: weekStart, lte: today } },
-            _sum: { value: true },
-        }),
+        getWaste(storeNo, weekStart, today),
     ]);
     // Same rows as the Waste & Auto-Promotion page (S7, SM9) — reuses the order inputs loaded above
     const promotions = await getPromotions(storeNo, now, order);
 
     // Days with no WasteRecord still get a bar (value 0), so the chart always has 7
-    const byDay = new Map(waste.map((w) => [w.wasteDate.getTime(), Number(w._sum.value ?? 0)]));
     const wasteLast7Days = Array.from({ length: 7 }, (_, i) => {
-        const day = addDays(weekStart, i);
-        return { date: day.toISOString().slice(0, 10), value: byDay.get(day.getTime()) ?? 0};
-    })
+        const date = addDays(weekStart, i).toISOString().slice(0, 10);
+        return { date, value: waste.byDay.get(date) ?? 0 };
+    });
 
     // S7: per-category waste-risk %, same lookup the promotion rows used
     const wasteRiskByCategory = new Map(promotions.triggers.map((t) => [t.code, t.wasteRiskPct]));
@@ -66,6 +63,7 @@ export async function getDashboard(storeNo: number, now = new Date()): Promise<D
         wasteToday: wasteLast7Days.at(-1)?.value ?? 0,
         lostSalesRisk: sumValue(risks, "SHORTAGE"),
         wasteLast7Days,
+        wasteByCategory: waste.byCategory,
         topRisk: risks.slice(0, 5),
         promos,
     };

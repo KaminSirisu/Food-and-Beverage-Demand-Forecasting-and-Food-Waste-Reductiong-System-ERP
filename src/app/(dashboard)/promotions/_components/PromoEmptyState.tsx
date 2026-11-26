@@ -6,11 +6,9 @@ export function PromoEmptyState() {
             <p className="mt-2 text-sm text-slate-600">
                 Today&apos;s forecast isn&apos;t available yet. Waste risk and discounts appear after today&apos;s sales are loaded and the model runs.
             </p>
-            {process.env.NODE_ENV !== "production" && (
-                <p className="mt-2 text-xs text-slate-400">
-                    Dev: run <code className="rounded bg-slate-100 px-1">npm run db:seed:demo</code> to load demo forecasts for today.
-                </p>
-            )}
+            <p className="mt-2 text-xs text-slate-500">
+                Load today&apos;s sales (Simulate Data Ingestion or the D365 file), then run the forecast.
+            </p>
         </section>
     );
 }

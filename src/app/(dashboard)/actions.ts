@@ -8,8 +8,9 @@ import { deleteFlash } from "@/lib/flash";
 import { ORDER_CUTOFF } from "@/lib/config";
 import { computeRow } from "@/lib/orders/formula";
 import { getOrderInputs } from "@/lib/orders/queries";
-import { isAfterCutoff, tomorrowDate } from "@/lib/time";
+import { appNow, isAfterCutoff, tomorrowDate } from "@/lib/time";
 import { evaluateAlerts } from "@/lib/alerts/engine";
+import { simulateIngestion, type SimulateResult } from "@/lib/simulate/ingest";
 
 export async function clearFlash(): Promise<void> {
     await deleteFlash();
@@ -61,7 +62,7 @@ export async function confirmOrder(input: unknown): Promise<ConfirmResult> {
         db.stockSnapshot.createMany({
             data: computed
                 .filter((c) => c.sent.leftNow !== c.input.leftNow)
-                .map((c) => ({ storeNo, itemNo: c.sent.itemNo, takenAt: now, qty: c.sent.leftNow, source: "COUNT", userId })),
+                .map((c) => ({ storeNo, itemNo: c.sent.itemNo, takenAt: appNow(now), qty: c.sent.leftNow, source: "COUNT", userId })),
         }),
         ...computed.map(({ sent, row }) => {
             const fields = {
@@ -102,4 +103,18 @@ export async function confirmOrder(input: unknown): Promise<ConfirmResult> {
 
     refresh(); // Next 16: re-render the page so "Confirmed at …" and the saved orders show
     return { ok: true, pendingAm };
+}
+// Manual 3.1.1 no. 6 (S1, demo only): load today's sales so far, then re-check alerts (S7). No forecast run.
+export async function simulateIngestionAction(): Promise<SimulateResult> {
+    const { storeNo } = await verifySession(); // G2: branch from the session
+    const now = new Date();
+    const result = await simulateIngestion(storeNo, now).catch((err: Error): SimulateResult => {
+        console.error("simulateIngestion failed", err);
+        return { ok: false, error: "Simulation failed. Check the server log." };
+    });
+    if (result.ok) { // re-check even with no new lines: forecasts or counts may have changed since the last check
+        await evaluateAlerts(storeNo, now).catch((err) => console.error("evaluateAlerts failed", err));
+    }
+    refresh(); // header sync pill, KPIs and the order card read the new sales
+    return result;
 }

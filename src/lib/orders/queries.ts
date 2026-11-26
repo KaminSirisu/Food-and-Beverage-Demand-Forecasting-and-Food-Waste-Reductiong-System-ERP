@@ -2,7 +2,8 @@
 // Forecast rule (agreed with Mew): active ModelVersion only, latest runAt per SKU.
 import "server-only";
 import { db } from "@/lib/db";
-import { startOfToday, todayDate, tomorrowDate } from "@/lib/time";
+import { addDays, startOfToday, todayDate, tomorrowDate } from "@/lib/time";
+import { estimateStockToday } from "./estimate";
 import type { OrderInputs } from "./formula";
 
 export type OrderData = {
@@ -36,7 +37,8 @@ export async function getOrderInputs(storeNo: number, now = new Date()): Promise
             orderBy: { runAt: "desc" }, // newest first → first row per SKU wins
         }),
         db.stockSnapshot.findMany({
-            where: { storeNo, takenAt: { gte: startOfToday(now) } },
+            // today only: the upper bound matters in demo mode, where real timestamps are later than the demo day
+            where: { storeNo, takenAt: { gte: startOfToday(now), lt: addDays(startOfToday(now), 1) } },
             select: { itemNo: true, qty: true, source: true },
             orderBy: { takenAt: "desc" },
         }),
@@ -63,6 +65,9 @@ export async function getOrderInputs(storeNo: number, now = new Date()): Promise
         if (!target.has(s.itemNo)) target.set(s.itemNo, s.qty);
     }
 
+    // S2: no snapshot today → estimate from deliveries and today's sales so far
+    const stockEstimate = await estimateStockToday(storeNo, skus, today);
+
     const savedBySku = new Map(saved.map((o) => [o.itemNo, o.orderedQty]));
     const confirmedAt = saved.reduce<Date | null>(
         (latest, o) => (o.confirmedAt && (!latest || o.confirmedAt > latest) ? o.confirmedAt : latest),
@@ -79,7 +84,7 @@ export async function getOrderInputs(storeNo: number, now = new Date()): Promise
             shelfLifeDays: s.shelfLifeDays,
             restOfDay: restOfDay.get(s.itemNo) ?? 0,
             tomorrow: tomorrowQty.get(s.itemNo)!,
-            leftNow: counted.get(s.itemNo) ?? estimated.get(s.itemNo) ?? 0,
+            leftNow: counted.get(s.itemNo) ?? estimated.get(s.itemNo) ?? stockEstimate.get(s.itemNo) ?? 0,
             savedOrdered: savedBySku.get(s.itemNo) ?? null,
         }));
 
