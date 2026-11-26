@@ -4,6 +4,7 @@ import "server-only";
 import { db } from "@/lib/db";
 import { DAILY_WASTE_TARGET } from "@/lib/config";
 import { addDays, todayDate } from "@/lib/time";
+import { getWaste } from "@/lib/waste/queries";
 import { dayKeys, fillDays, skuAccuracy, wasteTotals, type DayPair, type SkuAccuracy, type WasteTotals } from "./metrics";
 
 export const RANGES = [7, 30] as const;
@@ -60,12 +61,8 @@ export async function getAnalytics(storeNo: number, filter: AnalyticsFilter, now
             where: { storeNo, saleDate: { gte: salesFrom, lte: salesTo } },
             select: { itemNo: true, saleDate: true, qtySold: true, qtyReturned: true },
         }),
-        // Waste is branch-level (DailyReport), so the category filter does not apply to it
-        db.wasteRecord.groupBy({
-            by: ["wasteDate"],
-            where: { storeNo, wasteDate: { gte: waste30From, lte: today } },
-            _sum: { value: true },
-        }),
+        // Waste is branch-level (DailyReport or estimate), so the category filter does not apply to it
+        getWaste(storeNo, waste30From, today),
     ]);
 
     const categories = [...new Map(allSkus.map((s) => [s.categoryCode, s.categoryName ?? s.categoryCode])).entries()]
@@ -103,8 +100,7 @@ export async function getAnalytics(storeNo: number, filter: AnalyticsFilter, now
 
     const rows = pairsBySku.map(({ sku, pairs }) => ({ ...skuAccuracy(sku.itemNo, pairs), nameTh: sku.nameTh }));
 
-    const wasteByDay = new Map(waste.map((w) => [key(w.wasteDate), Number(w._sum.value ?? 0)]));
-    const waste30 = fillDays(dayKeys(waste30From, 30), wasteByDay, 0);
+    const waste30 = fillDays(dayKeys(waste30From, 30), waste.byDay, 0);
 
     return {
         model: model && { version: model.version, trainedAt: model.trainedAt, dataFrom: model.dataFrom, dataTo: model.dataTo },
