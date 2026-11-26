@@ -36,7 +36,9 @@ Replays real 2023 D365 days as if they were today. Use a **Neon demo branch** so
 3. During the demo day, press **Simulate Data Ingestion** (header): it loads that day's sales **up to the current clock time**
    through the normal pipeline (import log, daily totals, alert check). Press it again later to add the newer sales.
    Without a day file it copies the same weekday last week.
-4. Run the forecast by hand (the trigger stays manual for now):
+   Turn on **Live** next to it to repeat that every minute, so each sale arrives at its real time and stock goes down on screen.
+4. Tomorrow's forecast runs by itself: after a D365 file upload (trigger, L7), and from Simulate once at the first sync
+   of the day (provisional) and again after 13:30 (the official decision). By hand if needed:
    `npx tsx --env-file=.env src/lib/forecast/run-forecast.ts --date <tomorrow> --neon`
 5. Next day: change `NEXT_PUBLIC_DEMO_TODAY` (the dev server reloads `.env`).
 

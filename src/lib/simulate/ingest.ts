@@ -4,7 +4,7 @@
 // Source, in order:
 //   1. data/daily/Sales_Entry_<today>.xlsx — the real D365 day (local demo files, split from the monthly exports)
 //   2. otherwise the same weekday last week from the database, re-dated to today (transaction no. + offset)
-// The forecast is NOT run here (manual for now: src/lib/forecast/run-forecast.ts).
+// Tomorrow's forecast runs from the same trigger as the D365 upload, only when due (forecastIfDue below).
 import "server-only";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -16,6 +16,7 @@ import { openBatch, sha256 } from "@/lib/ingest/batch";
 import { SALES_ENTRY_HEADER, SalesEntryRow, type SalesEntryColumn } from "@/lib/ingest/columns";
 import { loadSalesEntry, type LoadResult } from "@/lib/ingest/load";
 import { readSalesEntry } from "@/lib/ingest/parse";
+import { runForecastAfterLoad } from "@/lib/forecast/trigger";
 import { addDays, todayDate } from "@/lib/time";
 
 const TX_OFFSET = 7_000_000; // re-dated lines get new transaction numbers, so the natural key stays unique
@@ -124,4 +125,34 @@ export async function simulateIngestion(storeNo: number, now = new Date()): Prom
     if (result.status === "FAILED") return { ok: false, error: result.message ?? "Load failed." };
     if (result.rows.loaded === 0) return { ok: true, status: "NO_NEW_DATA", day, upTo, source };
     return { ok: true, status: result.status, day, upTo, loaded: result.rows.loaded, rejected: result.rows.rejected, source };
+}
+
+const DECISION_TIME = "13:30"; // the model decides tomorrow at 13:30 (forecast.ts)
+
+export type SimForecast = { ran: boolean; reason?: "first" | "decision"; modelVersion?: string; rows?: number };
+
+/**
+ * Live demo: the order card needs tomorrow's forecast, so a sync runs the forecast trigger (L7, the same one
+ * the D365 upload uses) when it is due: once at the first sync of the day (provisional, morning sales only)
+ * and once more after 13:30 (the official decision). Never more than that, so the forecast table stays small.
+ */
+export async function forecastIfDue(storeNo: number, now = new Date()): Promise<SimForecast> {
+    const today = todayDate(now);
+    const latest = await db.forecast.findFirst({
+        where: { storeNo, targetDate: addDays(today, 1), modelVersion: { kind: "TOMORROW", isActive: true } },
+        orderBy: { runAt: "desc" },
+        select: { runAt: true },
+    });
+    const clock = bangkokClock(now).slice(0, 5);
+    // 13:30 Bangkok of the real day (the clock stays real in demo mode)
+    const realYmd = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(now);
+    const decisionAt = new Date(`${realYmd}T${DECISION_TIME}:00+07:00`);
+
+    let reason: SimForecast["reason"];
+    if (!latest) reason = "first";
+    else if (clock >= DECISION_TIME && latest.runAt < decisionAt) reason = "decision";
+    if (!reason) return { ran: false };
+
+    const r = await runForecastAfterLoad(today.toISOString().slice(0, 10), storeNo);
+    return { ran: true, reason, modelVersion: r.modelVersion, rows: r.rows };
 }
