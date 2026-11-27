@@ -114,14 +114,11 @@ export async function simulateIngestionAction(): Promise<SimulateResult & { fore
     });
     if (!result.ok) return result;
 
-    // Only when today has sales: the model needs today's data (it decides tomorrow from it)
-    const hasSales = result.status !== "NO_NEW_DATA" || result.source !== null;
-    const forecast = hasSales
-        ? await forecastIfDue(storeNo, now).catch((err): SimForecast => {
-              console.error("forecastIfDue failed", err);
-              return { ran: false };
-          })
-        : { ran: false };
+    // Provisional before 13:30 (no sales needed), the model after (it checks today has sales)
+    const forecast = await forecastIfDue(storeNo, now).catch((err): SimForecast => {
+        console.error("forecastIfDue failed", err);
+        return { ran: false };
+    });
     // re-check even with no new lines: forecasts or counts may have changed since the last check
     await evaluateAlerts(storeNo, now).catch((err) => console.error("evaluateAlerts failed", err));
     // SM5 / SM6: a checkpoint that is due runs now, with the stock this sync just updated

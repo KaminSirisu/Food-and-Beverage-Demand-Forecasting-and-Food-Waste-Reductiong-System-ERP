@@ -5,7 +5,8 @@
 //   1. data/daily/Sales_Entry_<today>.xlsx — the real D365 day (local demo files, split from the monthly exports)
 //   2. otherwise the same weekday last week from the database, re-dated to today (transaction no. + offset)
 // The first sync of a day also catches up the previous days (catchUpPreviousDays).
-// Tomorrow's forecast runs from the same trigger as the D365 upload, only when due (forecastIfDue below).
+// Tomorrow's forecast: the provisional baseline before 13:30, then the model from the same trigger as the D365 upload
+// (forecastIfDue below).
 import "server-only";
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -18,6 +19,8 @@ import { SALES_ENTRY_HEADER, SalesEntryRow, type SalesEntryColumn } from "@/lib/
 import { loadSalesEntry, type LoadResult } from "@/lib/ingest/load";
 import { readSalesEntry } from "@/lib/ingest/parse";
 import { runForecastAfterLoad } from "@/lib/forecast/trigger";
+import { BASELINE_VERSION, DECISION_TIME } from "@/lib/orders/forecast-pick";
+import { ensureProvisionalForecast } from "@/lib/orders/provisional";
 import { addDays, todayDate } from "@/lib/time";
 
 const TX_OFFSET = 7_000_000; // re-dated lines get new transaction numbers, so the natural key stays unique
@@ -172,32 +175,35 @@ export async function simulateIngestion(storeNo: number, now = new Date()): Prom
     return { ok: true, status: r.status, day, upTo, loaded: r.loaded, rejected: r.rejected, source: source!, catchUp };
 }
 
-const DECISION_TIME = "13:30"; // the model decides tomorrow at 13:30 (forecast.ts)
-
-export type SimForecast = { ran: boolean; reason?: "first" | "decision"; modelVersion?: string; rows?: number };
+export type SimForecast = { ran: boolean; reason?: "provisional" | "decision"; modelVersion?: string; rows?: number };
 
 /**
- * Live demo: the order card needs tomorrow's forecast, so a sync runs the forecast trigger (L7, the same one
- * the D365 upload uses) when it is due: once at the first sync of the day (provisional, morning sales only)
- * and once more after 13:30 (the official decision). Never more than that, so the forecast table stays small.
+ * Live demo: the order card needs tomorrow's forecast.
+ *   Before 13:30: the provisional 4-week baseline (orders/provisional.ts), saved once. It needs no sales today, so
+ *     pressing Live before the first sale (or before opening) still fills the order card.
+ *   From 13:30: the model, through the forecast trigger (L7, the same one the D365 upload uses), once, and only when
+ *     today has sales, because it decides tomorrow from them. The model no longer runs on a few morning sales:
+ *     it was trained on the 13:30 picture of the day.
  */
 export async function forecastIfDue(storeNo: number, now = new Date()): Promise<SimForecast> {
-    const today = todayDate(now);
-    const latest = await db.forecast.findFirst({
-        where: { storeNo, targetDate: addDays(today, 1), modelVersion: { kind: "TOMORROW", isActive: true } },
-        orderBy: { runAt: "desc" },
-        select: { runAt: true },
-    });
     const clock = bangkokClock(now).slice(0, 5);
+    if (clock < DECISION_TIME) {
+        const p = await ensureProvisionalForecast(storeNo, now);
+        return p.saved ? { ran: true, reason: "provisional", modelVersion: BASELINE_VERSION, rows: p.rows } : { ran: false };
+    }
+
+    const today = todayDate(now);
     // 13:30 Bangkok of the real day (the clock stays real in demo mode)
     const realYmd = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(now);
     const decisionAt = new Date(`${realYmd}T${DECISION_TIME}:00+07:00`);
-
-    let reason: SimForecast["reason"];
-    if (!latest) reason = "first";
-    else if (clock >= DECISION_TIME && latest.runAt < decisionAt) reason = "decision";
-    if (!reason) return { ran: false };
+    // Any version counts: if the model fails, the trigger saves the baseline instead, and that must not repeat every minute
+    const ranSince = await db.forecast.count({
+        where: { storeNo, targetDate: addDays(today, 1), runAt: { gte: decisionAt }, modelVersion: { kind: "TOMORROW" } },
+    });
+    if (ranSince > 0) return { ran: false };
+    const sold = await db.dailySales.count({ where: { storeNo, saleDate: today, qtySold: { gt: 0 } } });
+    if (sold === 0) return { ran: false };
 
     const r = await runForecastAfterLoad(today.toISOString().slice(0, 10), storeNo);
-    return { ran: true, reason, modelVersion: r.modelVersion, rows: r.rows };
+    return { ran: true, reason: "decision", modelVersion: r.modelVersion, rows: r.rows };
 }

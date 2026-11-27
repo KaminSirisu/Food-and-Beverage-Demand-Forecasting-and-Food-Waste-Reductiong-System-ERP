@@ -12,9 +12,9 @@ import { CutoffBadge, useMinutesLeft } from "./CutoffBadge";
 import { type Handlers, type Line } from "./order-view";
 import { TableView } from "./TableView";
 
-type Props = { lines: OrderInputs[]; notOnSale?: { itemNo: string; nameTh: string }[]; cutoff: string; serverNow: number; confirmedAt: Date | null };
+type Props = { lines: OrderInputs[]; notOnSale?: { itemNo: string; nameTh: string }[]; cutoff: string; serverNow: number; confirmedAt: Date | null; provisional?: boolean };
 
-export function FactoryOrderCard({ lines, notOnSale = [], cutoff, serverNow, confirmedAt }: Props) {
+export function FactoryOrderCard({ lines, notOnSale = [], cutoff, serverNow, confirmedAt, provisional = false }: Props) {
     const [mode, setMode] = useState<"compact" | "all">("compact");
     // SM4: Left now as typed by the manager (starts at the latest snapshot)
     const [leftNow, setLeftNow] = useState<Record<string, number>>(() =>
@@ -81,6 +81,11 @@ export function FactoryOrderCard({ lines, notOnSale = [], cutoff, serverNow, con
             <div className="mt-3 flex flex-wrap items-center gap-3">
                 <CutoffBadge cutoff={cutoff} minutesLeft={minutesLeft} />
                 {confirmedAt && <span className="text-sm text-emerald-700">✓ Confirmed at {formatClock(confirmedAt)}</span>}
+                {provisional && (
+                    <span className="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700" title="Average of the last 4 same weekdays. The LightGBM model replaces it at 13:30 with today's sales.">
+                        Provisional · model updates at 13:30
+                    </span>
+                )}
             </div>
             {mode === "compact" ? <CompactView rows={rows} totals={totals} {...handlers} /> : <TableView rows={rows} {...handlers} />}
             {notOnSale.length > 0 && (

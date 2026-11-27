@@ -9,7 +9,7 @@ import { alertsFromRisks } from "./rules";
 import { cheerDrafts, opportunityDrafts, type CheckpointKind } from "./checkpoints";
 import { db } from "@/lib/db";
 import { openingStockToday } from "@/lib/orders/estimate";
-import { todayDate } from "@/lib/time";
+import { bangkokHHmm, todayDate } from "@/lib/time";
 
 export type EvaluateResult = { atRisk: number; created: number };
 
@@ -27,11 +27,6 @@ export async function evaluateAlerts(storeNo: number, now = new Date()): Promise
 }
 
 export type CheckpointResult = { kind: CheckpointKind; at: string; atRisk: number; created: number };
-
-/** "HH:mm" in Bangkok: the clock stays real in demo mode. */
-function bangkokHHmm(now: Date): string {
-    return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Bangkok", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
-}
 
 /**
  * SM5 / SM6: run each checkpoint once a day, when the clock passes the time set on Branch Thresholds & Checkpoints

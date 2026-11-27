@@ -2,7 +2,7 @@
 // Manual 3.1.1 no. 6: "Simulate Data Ingestion — demo only. Loads new sample sales data."
 // Click = load today's sales up to now once. "Live" = repeat every minute, so each sale arrives at its real time
 // (e.g. a 10:00 sale shows up at 10:00) and stock goes down on screen like a real POS feed.
-// The action also runs tomorrow's forecast when it is due (first sync, then after 13:30), and the first sync of a day
+// The action also makes tomorrow's forecast when it is due (provisional before 13:30, the model after), and the first sync of a day
 // loads the rest of the previous days (evening sales after Live was stopped, or days the demo was closed).
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { RefreshCw } from "lucide-react";
@@ -45,10 +45,11 @@ export function SimulateButton() {
                     });
                 }
                 if (r.ok && r.forecast?.ran) {
-                    sileo.success({
-                        title: r.forecast.reason === "decision" ? "13:30 forecast updated" : "Tomorrow's forecast ready",
-                        description: `${r.forecast.rows} SKUs · model ${r.forecast.modelVersion}${r.forecast.reason === "first" ? " · updates again after 13:30" : ""}`,
-                    });
+                    sileo.success(
+                        r.forecast.reason === "decision"
+                            ? { title: "13:30 forecast updated", description: `${r.forecast.rows} SKUs · model ${r.forecast.modelVersion}` }
+                            : { title: "Tomorrow's forecast ready (provisional)", description: `${r.forecast.rows} SKUs · 4-week average · the model updates it at 13:30` },
+                    );
                 }
             } finally {
                 busy.current = false;
