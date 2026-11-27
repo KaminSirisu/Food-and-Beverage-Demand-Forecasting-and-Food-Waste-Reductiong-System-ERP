@@ -6,9 +6,10 @@ import { getOrderInputs, type OrderData } from "@/lib/orders/queries";
 import { getPromotions } from "@/lib/promotions/queries";
 import { addDays, todayDate } from "@/lib/time";
 import { projectedWasteTonight, riskSkus, sumValue, type RiskSku } from "./risk";
-import { getWaste, type WasteByCategory } from "@/lib/waste/queries";
+import { getWaste, getWasteDays, type WasteByCategory } from "@/lib/waste/queries";
+import type { WasteDay } from "@/lib/waste/target";
 
-export type WasteDay = { date: string, value: number }; // date = "YYYY-MM-DD" (Bangkok day)
+export type { WasteDay };
 export type PromoCandidate = RiskSku & {
     discountPct: number;
     status: string; // Promotion.posStatus (PENDING | LIVE | NONE), or SUGGESTED when no row exists yet
@@ -19,7 +20,7 @@ export type DashboardData = {
     wasteToday: number; // ฿ already recorded today (D365 report / manual)
     wasteProjected: number; // ฿ of last-day stock expected to be left unsold at close tonight
     lostSalesRisk: number;
-    wasteLast7Days: WasteDay[]; // always 7 entries, oldest -> today
+    wasteLast7Days: WasteDay[]; // always 7 entries, oldest -> today, each with its 5%-of-sales target
     wasteByCategory: WasteByCategory[]; // last 7 days, biggest first (estimated part)
     topRisk: RiskSku[];
     promos: PromoCandidate[];
@@ -36,11 +37,8 @@ export async function getDashboard(storeNo: number, now = new Date()): Promise<D
     // Same rows as the Waste & Auto-Promotion page (S7, SM9) — reuses the order inputs loaded above
     const promotions = await getPromotions(storeNo, now, order);
 
-    // Days with no WasteRecord still get a bar (value 0), so the chart always has 7
-    const wasteLast7Days = Array.from({ length: 7 }, (_, i) => {
-        const date = addDays(weekStart, i).toISOString().slice(0, 10);
-        return { date, value: waste.byDay.get(date) ?? 0 };
-    });
+    // Days with no waste still get a point (value 0), so the chart always has 7
+    const wasteLast7Days = await getWasteDays(storeNo, weekStart, today, waste.byDay);
 
     // S7: per-category waste-risk %, same lookup the promotion rows used
     const wasteRiskByCategory = new Map(promotions.triggers.map((t) => [t.code, t.wasteRiskPct]));
