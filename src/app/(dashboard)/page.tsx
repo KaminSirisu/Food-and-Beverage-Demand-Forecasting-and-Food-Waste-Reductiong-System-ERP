@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Trash2, TrendingDown } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/dal";
-import { DAILY_WASTE_TARGET, ORDER_CUTOFF } from "@/lib/config";
+import { ORDER_CUTOFF, WASTE_TARGET_PCT } from "@/lib/config";
 import { getDashboard } from "@/lib/dashboard/queries";
 import { baht } from "@/lib/format";
 import { AutoPromotionsCard } from "./_components/AutoPromotionsCard";
@@ -20,10 +20,13 @@ export default async function DashboardPage() {
     const { order } = data;
     // Manual 3.1.2 no. 1: waste is only known at close, so show what's logged so far + what tonight will add
     const wasteTotal = data.wasteToday + data.wasteProjected;
-    const overTarget = wasteTotal > DAILY_WASTE_TARGET;
+    // SM7: today's target = 5% of today's expected total sales (waste/target.ts)
+    const targetToday = data.wasteLast7Days.at(-1)?.target ?? 0;
+    const overTarget = wasteTotal > targetToday;
+    const targetText = `target ${baht(targetToday)} (${WASTE_TARGET_PCT}% of sales)`;
     const wasteHint = data.wasteProjected > 0
-        ? `${baht(data.wasteProjected)} projected unsold at close${data.wasteToday > 0 ? ` + ${baht(data.wasteToday)} logged` : ""} · target ${baht(DAILY_WASTE_TARGET)}`
-        : `Nothing expected left at close · target ${baht(DAILY_WASTE_TARGET)}`;
+        ? `${baht(data.wasteProjected)} projected unsold at close${data.wasteToday > 0 ? ` + ${baht(data.wasteToday)} logged` : ""} · ${targetText}`
+        : `Nothing expected left at close · ${targetText}`;
 
     return (
         <div className="space-y-4">

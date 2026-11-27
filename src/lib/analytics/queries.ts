@@ -2,10 +2,10 @@
 // Actuals come from daily_sales (never sales_line); forecasts from the TOMORROW model (Model 2).
 import "server-only";
 import { db } from "@/lib/db";
-import { DAILY_WASTE_TARGET } from "@/lib/config";
 import { addDays, todayDate } from "@/lib/time";
-import { getWaste } from "@/lib/waste/queries";
-import { dayKeys, fillDays, skuAccuracy, wasteTotals, type DayPair, type SkuAccuracy, type WasteTotals } from "./metrics";
+import { getWaste, getWasteDays } from "@/lib/waste/queries";
+import type { WasteDay } from "@/lib/waste/target";
+import { dayKeys, skuAccuracy, wasteTotals, type DayPair, type SkuAccuracy, type WasteTotals } from "./metrics";
 
 export const RANGES = [7, 30] as const;
 export type Range = (typeof RANGES)[number];
@@ -23,9 +23,8 @@ export type AnalyticsData = {
     series: SeriesPoint[]; // forecast vs actual, units/day summed over the shown SKUs, oldest → yesterday
     skuCount: number;
     rows: (SkuAccuracy & { nameTh: string })[];
-    waste: { date: string; value: number }[]; // ฿/day, oldest → today, `range` entries
+    waste: WasteDay[]; // ฿/day with each day's 5%-of-sales target, oldest → today, `range` entries
     wasteTotals: WasteTotals;
-    wasteTarget: number;
 };
 
 const key = (d: Date) => d.toISOString().slice(0, 10);
@@ -100,7 +99,7 @@ export async function getAnalytics(storeNo: number, filter: AnalyticsFilter, now
 
     const rows = pairsBySku.map(({ sku, pairs }) => ({ ...skuAccuracy(sku.itemNo, pairs), nameTh: sku.nameTh }));
 
-    const waste30 = fillDays(dayKeys(waste30From, 30), waste.byDay, 0);
+    const waste30 = await getWasteDays(storeNo, waste30From, today, waste.byDay);
 
     return {
         model: model && { version: model.version, trainedAt: model.trainedAt, dataFrom: model.dataFrom, dataTo: model.dataTo },
@@ -110,7 +109,6 @@ export async function getAnalytics(storeNo: number, filter: AnalyticsFilter, now
         skuCount: skus.length,
         rows,
         waste: waste30.slice(-filter.range),
-        wasteTotals: wasteTotals(waste30.map((w) => w.value), DAILY_WASTE_TARGET),
-        wasteTarget: DAILY_WASTE_TARGET,
+        wasteTotals: wasteTotals(waste30),
     };
 }

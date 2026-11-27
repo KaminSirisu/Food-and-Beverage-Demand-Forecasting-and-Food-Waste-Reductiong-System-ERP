@@ -83,18 +83,20 @@ export type WasteTotals = {
     last7: number;
     last30: number;
     avg7: number; // ฿ per day over the last 7
-    daysOver30: number; // days in the last 30 above the daily target
+    daysOver30: number; // days in the last 30 above their own target (5% of that day's sales)
+    targetAvg7: number; // average daily target over the last 7 days
 };
 
-/** `days` = ฿ waste per day, oldest → newest, up to 30 entries. */
-export function wasteTotals(days: number[], target: number): WasteTotals {
+/** `days` = ฿ waste per day with its target, oldest → newest, up to 30 entries. */
+export function wasteTotals(days: { value: number; target: number }[]): WasteTotals {
     const last30 = days.slice(-30);
     const last7 = days.slice(-7);
     const sum = (xs: number[]) => xs.reduce((s, x) => s + x, 0);
     return {
-        last7: sum(last7),
-        last30: sum(last30),
-        avg7: last7.length ? sum(last7) / last7.length : 0,
-        daysOver30: last30.filter((v) => v > target).length,
+        last7: sum(last7.map((d) => d.value)),
+        last30: sum(last30.map((d) => d.value)),
+        avg7: last7.length ? sum(last7.map((d) => d.value)) / last7.length : 0,
+        daysOver30: last30.filter((d) => d.value > d.target).length,
+        targetAvg7: last7.length ? sum(last7.map((d) => d.target)) / last7.length : 0,
     };
 }

@@ -42,10 +42,10 @@ export default async function AnalyticsPage({ searchParams }: Props) {
 
             <div className="grid gap-6 lg:grid-cols-5">
                 <div className="lg:col-span-3">
-                    <WasteTrendChart days={data.waste} target={data.wasteTarget} />
+                    <WasteTrendChart days={data.waste} />
                 </div>
                 <div className="lg:col-span-2">
-                    <WasteTotals totals={data.wasteTotals} target={data.wasteTarget} />
+                    <WasteTotals totals={data.wasteTotals} />
                 </div>
             </div>
 

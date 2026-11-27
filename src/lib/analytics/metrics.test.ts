@@ -88,15 +88,22 @@ describe("wasteTotals", () => {
     // Demo seed's last 7 days (dashboard mockup)
     const last7 = [1256, 1221, 1041, 1063, 1113, 955, 1425];
 
-    it("sums 7 and 30 days and counts days over target", () => {
-        const days = [...Array(23).fill(1000), ...last7];
-        const t = wasteTotals(days, 1200);
+    it("sums 7 and 30 days and counts days over their own target", () => {
+        const days = [...Array(23).fill(1000), ...last7].map((value) => ({ value, target: 1200 }));
+        const t = wasteTotals(days);
         expect(t.last7).toBe(8074); // = mockup "Last 7 days ฿8,074"
         expect(t.last30).toBe(23_000 + 8074);
         expect(t.avg7).toBeCloseTo(8074 / 7); // ≈ ฿1,153 like the mockup
         expect(t.daysOver30).toBe(3); // 1256, 1221, 1425
+        expect(t.targetAvg7).toBe(1200);
+    });
+    it("uses each day's target, not one flat line", () => {
+        // ฿900 waste is over 5% of a ฿15,000 day (฿750) but within 5% of a ฿24,000 day (฿1,200)
+        const t = wasteTotals([{ value: 900, target: 750 }, { value: 900, target: 1200 }]);
+        expect(t.daysOver30).toBe(1);
+        expect(t.targetAvg7).toBe(975);
     });
     it("is all zeros with no data", () => {
-        expect(wasteTotals([], 1200)).toEqual({ last7: 0, last30: 0, avg7: 0, daysOver30: 0 });
+        expect(wasteTotals([])).toEqual({ last7: 0, last30: 0, avg7: 0, daysOver30: 0, targetAvg7: 0 });
     });
 });

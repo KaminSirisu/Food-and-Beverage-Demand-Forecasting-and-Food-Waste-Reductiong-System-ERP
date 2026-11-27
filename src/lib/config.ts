@@ -13,8 +13,9 @@ export const STORE_OPEN_AT = process.env.STORE_OPEN_AT ?? "09:00";
 // S5: lines more than this % above Suggested need Area Manager approval
 export const AM_APPROVAL_PCT = 20;
 
-// Daily Waste vs Target chart (฿ per day). Constant for now; could move to BranchThreshold later.
-export const DAILY_WASTE_TARGET = 1200;
+// SM7 / S6 waste KPI: a day's waste should stay at or below this % of that day's total sales (whole branch).
+// Used by Daily Waste vs Target, Food Waste Trend, Waste Totals and the Value of Waste card (waste/target.ts).
+export const WASTE_TARGET_PCT = 5;
 
 // Header: the D365 sync shows as "Stale" if the last loaded batch is older than this
 export const SYNC_STALE_HOURS = 4;
