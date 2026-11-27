@@ -36,6 +36,10 @@ export function appNow(now = new Date()): Date {
     const realDay = new Date(`${bangkokYmd(now)}T00:00:00Z`);
     return new Date(now.getTime() + (todayDate(now).getTime() - realDay.getTime()));
 }
+/** "HH:mm" in Bangkok. The clock stays real in demo mode. */
+export function bangkokHHmm(now = new Date()): string {
+    return new Intl.DateTimeFormat("en-GB", { timeZone: TimeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
+}
 export function addDays(date: Date, days: number): Date {
     return new Date(date.getTime() + days * DAY_MS);
 }

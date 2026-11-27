@@ -1,6 +1,6 @@
 // Runs once when the Next.js server starts. Starts the checkpoint timer (SM5 / SM6): every minute it asks the app to
 // run any Opportunity / Cheer checkpoint that is due, so alerts fire at the times on Branch Thresholds & Checkpoints
-// even when nobody has the dashboard open. It calls the API route instead of importing the engine, because the
+// even when nobody has the dashboard open. The same call saves tomorrow's provisional forecast at store opening (S3). It calls the API route instead of importing the engine, because the
 // engine is server-only app code (Prisma, "server-only") that belongs to the request layer.
 const EVERY_MS = 60_000;
 
@@ -19,8 +19,9 @@ export function register() {
         try {
             const res = await fetch(`${base}/api/alerts/checkpoints`, { method: "POST", headers: { "x-api-key": key } });
             if (!res.ok) return console.error(`[checkpoints] ${res.status}`);
-            const { ran } = (await res.json()) as { ran: { kind: string; created: number }[] };
+            const { ran, provisional } = (await res.json()) as { ran: { kind: string; created: number }[]; provisional?: { saved: boolean; rows: number } };
             for (const r of ran) console.log(`[checkpoints] ${r.kind} ran: ${r.created} alert(s)`);
+            if (provisional?.saved) console.log(`[forecast] provisional forecast saved for tomorrow: ${provisional.rows} SKUs`);
         } catch (err) {
             console.error("[checkpoints] timer call failed", (err as Error).message);
         }

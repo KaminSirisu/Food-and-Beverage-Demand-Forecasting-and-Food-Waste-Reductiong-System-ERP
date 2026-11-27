@@ -6,6 +6,10 @@ export const STORE_NO = 801; // Scope: Central Salaya only
 // SM3: factory order cutoff, in Bangkok time. Matches the mockup; the alert times are a separate open decision.
 export const ORDER_CUTOFF = "14:00";
 
+// S3: the store opens at this time (Bangkok). At opening the server timer saves tomorrow's provisional forecast
+// (4-week same-weekday average), so the order card is ready before the first sale. The model replaces it at 13:30.
+export const STORE_OPEN_AT = process.env.STORE_OPEN_AT ?? "09:00";
+
 // S5: lines more than this % above Suggested need Area Manager approval
 export const AM_APPROVAL_PCT = 20;
 

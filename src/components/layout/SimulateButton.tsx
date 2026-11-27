@@ -2,7 +2,7 @@
 // Manual 3.1.1 no. 6: "Simulate Data Ingestion — demo only. Loads new sample sales data."
 // Click = load today's sales up to now once. "Live" = repeat every minute, so each sale arrives at its real time
 // (e.g. a 10:00 sale shows up at 10:00) and stock goes down on screen like a real POS feed.
-// The action also runs tomorrow's forecast when it is due (first sync, then after 13:30), and the first sync of a day
+// The action also makes tomorrow's forecast when it is due (provisional before 13:30, the model after), and the first sync of a day
 // loads the rest of the previous days (evening sales after Live was stopped, or days the demo was closed).
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { RefreshCw } from "lucide-react";
@@ -17,7 +17,8 @@ export function SimulateButton() {
     const [live, setLive] = useState(false);
     const busy = useRef(false); // skip a tick while the previous load is still running
 
-    const run = useCallback((quiet: boolean) => {
+    // "click" = Simulate button, "live-start" = Live just switched on, "tick" = Live's every-minute load
+    const run = useCallback((mode: "click" | "live-start" | "tick") => {
         if (busy.current) return;
         busy.current = true;
         startTransition(async () => {
@@ -32,8 +33,10 @@ export function SimulateButton() {
                 if (!r.ok) {
                     sileo.error({ title: "Simulation failed", description: r.error });
                 } else if (r.status === "NO_NEW_DATA") {
-                    // Live mode: a quiet minute is normal, no toast
-                    if (!quiet) sileo.info({ title: "No new sales", description: `Everything up to ${r.upTo.slice(0, 5)} is already loaded.` });
+                    // A quiet Live minute is normal, no toast. But say so when Live starts, e.g. before the shop's
+                    // first sale of the day, so the switch doesn't look broken.
+                    if (mode === "click") sileo.info({ title: "No new sales", description: `Everything up to ${r.upTo.slice(0, 5)} is already loaded.` });
+                    if (mode === "live-start") sileo.info({ title: "Live is on", description: `No new sales up to ${r.upTo.slice(0, 5)}. Each new sale loads within a minute.` });
                 } else {
                     const rejected = r.rejected > 0 ? ` · ${r.rejected} rejected` : "";
                     sileo.success({
@@ -42,10 +45,11 @@ export function SimulateButton() {
                     });
                 }
                 if (r.ok && r.forecast?.ran) {
-                    sileo.success({
-                        title: r.forecast.reason === "decision" ? "13:30 forecast updated" : "Tomorrow's forecast ready",
-                        description: `${r.forecast.rows} SKUs · model ${r.forecast.modelVersion}${r.forecast.reason === "first" ? " · updates again after 13:30" : ""}`,
-                    });
+                    sileo.success(
+                        r.forecast.reason === "decision"
+                            ? { title: "13:30 forecast updated", description: `${r.forecast.rows} SKUs · model ${r.forecast.modelVersion}` }
+                            : { title: "Tomorrow's forecast ready (provisional)", description: `${r.forecast.rows} SKUs · 4-week average · the model updates it at 13:30` },
+                    );
                 }
             } finally {
                 busy.current = false;
@@ -55,8 +59,8 @@ export function SimulateButton() {
 
     useEffect(() => {
         if (!live) return;
-        run(true); // catch up at once, then every minute
-        const id = setInterval(() => run(true), LIVE_EVERY_MS);
+        run("live-start"); // catch up at once, then every minute
+        const id = setInterval(() => run("tick"), LIVE_EVERY_MS);
         return () => clearInterval(id); // stop when Live is turned off
     }, [live, run]);
 
@@ -64,7 +68,7 @@ export function SimulateButton() {
         <div className="flex items-center overflow-hidden rounded-lg border border-emerald-600">
             <button
                 type="button"
-                onClick={() => run(false)}
+                onClick={() => run("click")}
                 disabled={pending}
                 title="Demo only: loads today's sales up to now"
                 className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:cursor-wait disabled:opacity-60"

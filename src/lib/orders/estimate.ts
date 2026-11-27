@@ -6,6 +6,7 @@
 import "server-only";
 import { db } from "@/lib/db";
 import { addDays } from "@/lib/time";
+import { forecastVersionFilter, pickForecast } from "./forecast-pick";
 
 const dayKey = (d: Date) => d.toISOString().slice(0, 10);
 const k = (itemNo: string, d: Date) => `${itemNo}|${dayKey(d)}`;
@@ -18,16 +19,13 @@ export async function deliveredByDay(storeNo: number, from: Date, to: Date): Pro
             select: { itemNo: true, deliveryDate: true, orderedQty: true },
         }),
         db.forecast.findMany({
-            where: { storeNo, targetDate: { gte: from, lte: to }, modelVersion: { kind: "TOMORROW", isActive: true } },
-            select: { itemNo: true, targetDate: true, predictedQty: true },
+            where: { storeNo, targetDate: { gte: from, lte: to }, modelVersion: { kind: "TOMORROW", ...forecastVersionFilter } },
+            select: { itemNo: true, targetDate: true, predictedQty: true, modelVersion: { select: { isActive: true } } },
             orderBy: { runAt: "desc" }, // newest first → first row per SKU/day wins
         }),
     ]);
-    const out = new Map<string, number>();
-    for (const f of forecasts) {
-        const key = k(f.itemNo, f.targetDate);
-        if (!out.has(key)) out.set(key, Math.ceil(Number(f.predictedQty)));
-    }
+    // the model's newest row wins; the provisional baseline only fills a day the model never forecast
+    const out = new Map([...pickForecast(forecasts, (f) => k(f.itemNo, f.targetDate))].map(([key, v]) => [key, Math.ceil(v.qty)]));
     for (const o of orders) {
         if (o.orderedQty !== null) out.set(k(o.itemNo, o.deliveryDate), o.orderedQty); // a confirmed order beats the suggestion
     }

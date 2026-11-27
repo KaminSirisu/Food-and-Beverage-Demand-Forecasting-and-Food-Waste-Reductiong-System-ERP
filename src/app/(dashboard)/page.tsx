@@ -62,6 +62,7 @@ export default async function DashboardPage() {
                             cutoff={ORDER_CUTOFF}
                             serverNow={order.serverNow}
                             confirmedAt={order.confirmedAt}
+                            provisional={order.provisional}
                         />
                     )}
                 </div>
