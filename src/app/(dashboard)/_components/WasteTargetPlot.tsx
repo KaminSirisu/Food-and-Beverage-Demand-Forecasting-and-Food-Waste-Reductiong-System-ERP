@@ -1,6 +1,5 @@
-// SM7 / S6: waste ฿ per day (solid line + fill) against each day's target (dashed), 5% of that day's total sales.
-// The target moves with sales, so it is a line, not a flat bar. Days over their target are red (dot + segment,
-// value shown when there are few days). Same hand-written SVG style as ForecastLineChart (no chart library).
+// SM7 / S6: waste ฿ per day as bars (red = over that day's target, green = within) and each day's target as a
+// dashed line across the bars: 5% of that day's total sales, so it moves with sales instead of one flat ฿ line.
 // Used by Daily Waste vs Target (dashboard) and Food Waste Trend (analytics).
 import { WASTE_TARGET_PCT } from "@/lib/config";
 import { baht, niceStep } from "@/lib/format";
@@ -19,21 +18,16 @@ type Props = {
 export function WasteTargetPlot({ days, heightClass, label }: Props) {
     const highest = Math.max(1, ...days.flatMap((d) => [d.value, d.target]));
     const step = niceStep(highest);
-    const axisMax = Math.ceil(highest / step) * step;
+    const axisMax = Math.ceil(highest / step) * step; // e.g. 1,425 → 1,500
     const gridlines = Array.from({ length: axisMax / step + 1 }, (_, i) => i * step);
-
-    const x = (i: number) => (days.length <= 1 ? W / 2 : (i / (days.length - 1)) * W);
-    const y = (v: number) => H - (v / axisMax) * H;
     const pct = (v: number) => `${(v / axisMax) * 100}%`;
-    const left = (i: number) => `${(x(i) / W) * 100}%`;
-
-    const line = (pick: (d: WasteDay) => number) => days.map((d, i) => `${i === 0 ? "M" : "L"}${x(i)},${y(pick(d))}`).join(" ");
-    const wastePath = line((d) => d.value);
-    const areaPath = `${wastePath} L${x(days.length - 1)},${H} L${x(0)},${H} Z`;
-    const targetPath = line((d) => d.target);
-    // A segment turns red when the day it ends on is over target
-    const redSegments = days.flatMap((d, i) => (i > 0 && isOverTarget(d) ? [`M${x(i - 1)},${y(days[i - 1].value)} L${x(i)},${y(d.value)}`] : []));
+    // Equal columns, so bar i is centred at (i + ½) / n: the target line passes through each bar's middle
+    const n = Math.max(1, days.length);
+    const cx = (i: number) => ((i + 0.5) / n) * W;
+    const y = (v: number) => H - (v / axisMax) * H;
+    const targetPath = days.map((d, i) => `${i === 0 ? "M" : "L"}${cx(i)},${y(d.target)}`).join(" ");
     const showValues = days.length <= 10;
+    const barPad = days.length > 10 ? "px-px" : "px-1.5";
 
     return (
         <>
@@ -49,64 +43,45 @@ export function WasteTargetPlot({ days, heightClass, label }: Props) {
                         <span className="absolute -left-12 w-10 -translate-y-1/2 text-right text-xs text-slate-400">{baht(g)}</span>
                     </div>
                 ))}
-                <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="absolute inset-0 size-full overflow-visible" aria-hidden>
-                    <path d={areaPath} className="fill-emerald-500/10" />
-                    <path d={wastePath} fill="none" className="stroke-emerald-500" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-                    {redSegments.map((d) => (
-                        <path key={d} d={d} fill="none" className="stroke-red-600" strokeWidth={2.5} vectorEffect="non-scaling-stroke" />
-                    ))}
-                    <path
-                        d={targetPath} fill="none" className="stroke-slate-500" strokeWidth={2} strokeDasharray="5 4"
-                        vectorEffect="non-scaling-stroke"
-                    />
-                </svg>
 
-                {days.map((d, i) => {
-                    const over = isOverTarget(d);
-                    const isLast = i === days.length - 1;
-                    return (
-                        // One hover column per day (dot + tooltip)
-                        <div
-                            key={d.date}
-                            className="group absolute inset-y-0 -translate-x-1/2"
-                            style={{ left: left(i), width: `${100 / Math.max(1, days.length)}%` }}
-                        >
-                            {(over || isLast) && (
-                                <span
+                <div className="relative flex h-full items-end">
+                    {days.map((d) => {
+                        const over = isOverTarget(d);
+                        return (
+                            <div key={d.date} className={`group relative flex h-full flex-1 flex-col items-center justify-end ${barPad}`}>
+                                {over && showValues && <span aria-hidden className="mb-1 text-xs font-semibold text-slate-700">{baht(d.value)}</span>}
+                                <div
                                     aria-hidden
-                                    className={`absolute left-1/2 size-2.5 -translate-x-1/2 translate-y-1/2 rounded-full border-2 border-white ${over ? "bg-red-600" : "bg-emerald-500"}`}
-                                    style={{ bottom: pct(d.value) }}
+                                    className={`w-full max-w-10 rounded-t transition-opacity group-hover:opacity-75 ${over ? "bg-red-600" : "bg-emerald-300"}`}
+                                    style={{ height: pct(d.value) }}
                                 />
-                            )}
-                            {over && showValues && (
-                                <span
-                                    aria-hidden
-                                    className="absolute left-1/2 mb-2 -translate-x-1/2 text-xs font-semibold whitespace-nowrap text-red-700"
-                                    style={{ bottom: pct(d.value) }}
-                                >
-                                    {baht(d.value)}
-                                </span>
-                            )}
-                            <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 rounded-lg bg-slate-900 px-3 py-2 text-xs whitespace-nowrap text-white shadow-lg group-hover:block">
-                                <p className="font-semibold">{FULL_DAY.format(new Date(`${d.date}T00:00:00Z`))}</p>
-                                <p>Waste {baht(d.value)}</p>
-                                <p>
-                                    Target {baht(d.target)} = {WASTE_TARGET_PCT}% of {d.expected ? "expected sales" : "sales"} {baht(d.sales)}
-                                </p>
-                                <p className={over ? "text-red-300" : "text-slate-300"}>
-                                    {baht(Math.abs(d.value - d.target))} {over ? "over" : "under"} target
-                                </p>
+                                <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 hidden -translate-x-1/2 rounded-lg bg-slate-900 px-3 py-2 text-xs whitespace-nowrap text-white shadow-lg group-hover:block">
+                                    <p className="font-semibold">{FULL_DAY.format(new Date(`${d.date}T00:00:00Z`))}</p>
+                                    <p>Daily waste {baht(d.value)}</p>
+                                    <p>
+                                        Target {baht(d.target)} = {WASTE_TARGET_PCT}% of {d.expected ? "expected sales" : "sales"} {baht(d.sales)}
+                                    </p>
+                                    <p className={over ? "text-red-300" : "text-slate-300"}>
+                                        {baht(Math.abs(d.value - d.target))} {over ? "over" : "under"} target
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
+
+                <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="pointer-events-none absolute inset-0 size-full overflow-visible" aria-hidden>
+                    <path d={targetPath} fill="none" className="stroke-slate-500" strokeWidth={2} strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />
+                    {days.length <= 10 &&
+                        days.map((d, i) => <circle key={d.date} cx={cx(i)} cy={y(d.target)} r={3} className="fill-white stroke-slate-500" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />)}
+                </svg>
             </div>
 
             <div className="relative mt-2 ml-12 h-4" aria-hidden>
                 {days.map((d, i) => {
                     const text = label(d, i);
                     return text ? (
-                        <span key={d.date} className="absolute -translate-x-1/2 text-xs text-slate-500" style={{ left: left(i) }}>
+                        <span key={d.date} className="absolute -translate-x-1/2 text-xs text-slate-500" style={{ left: `${((i + 0.5) / n) * 100}%` }}>
                             {text}
                         </span>
                     ) : null;
@@ -115,10 +90,10 @@ export function WasteTargetPlot({ days, heightClass, label }: Props) {
 
             <div className="mt-4 flex flex-wrap gap-4 text-xs text-slate-600" aria-hidden>
                 <span className="flex items-center gap-1.5">
-                    <span className="w-5 border-t-2 border-emerald-500" /> Daily waste
+                    <span className="size-3 rounded-sm bg-emerald-300" /> Within target
                 </span>
                 <span className="flex items-center gap-1.5">
-                    <span className="size-2.5 rounded-full bg-red-600" /> Over target{showValues ? " (value shown)" : ""}
+                    <span className="size-3 rounded-sm bg-red-600" /> Over target{showValues ? " (value shown)" : ""}
                 </span>
                 <span className="flex items-center gap-1.5">
                     <span className="w-5 border-t-2 border-dashed border-slate-500" /> Target = {WASTE_TARGET_PCT}% of the day&apos;s total sales
